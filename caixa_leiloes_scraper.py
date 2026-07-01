@@ -285,32 +285,43 @@ def comparar(atuais: list[dict], anteriores: list[dict] | None, id_col: str):
     return novos, removidos
 
 
-def _celula_html(valor: str) -> str:
-    """Formata uma célula: se parecer uma URL, vira link clicável."""
-    texto = (valor or "").strip()
-    if texto.startswith("http://") or texto.startswith("https://"):
-        return f'<a href="{texto}" target="_blank" rel="noopener">abrir</a>'
-    return texto
+def _parar_valor_brl(texto: str) -> float:
+    """Converte '147.398,67' (formato BR: ponto=milhar, vírgula=decimal) em float."""
+    if not texto:
+        return 0.0
+    limpo = texto.strip().replace(".", "").replace(",", ".")
+    try:
+        return float(limpo)
+    except ValueError:
+        return 0.0
 
 
-def _tabela_html(linhas: list[dict], destacar: bool = False) -> str:
-    if not linhas:
-        return "<p class='vazio'>Nenhum imóvel.</p>"
-    colunas = list(linhas[0].keys())
-    thead = "".join(f"<th>{c}</th>" for c in colunas)
-    linhas_html = []
-    for row in linhas:
-        tds = "".join(f"<td>{_celula_html(row.get(c, ''))}</td>" for c in colunas)
-        classe = ' class="novo"' if destacar else ""
-        linhas_html.append(f"<tr{classe}>{tds}</tr>")
-    return f"""
-    <div class="tabela-wrap">
-    <table>
-      <thead><tr>{thead}</tr></thead>
-      <tbody>{''.join(linhas_html)}</tbody>
-    </table>
-    </div>
-    """
+def _parar_desconto(texto: str) -> float:
+    """Desconto já vem como '48.10' (ponto decimal padrão)."""
+    try:
+        return float((texto or "0").strip())
+    except ValueError:
+        return 0.0
+
+
+def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str) -> dict:
+    preco = _parar_valor_brl(row.get("Preço", ""))
+    avaliacao = _parar_valor_brl(row.get("Valor de avaliação", ""))
+    desconto = _parar_desconto(row.get("Desconto", ""))
+    return {
+        "id": row.get(id_col, ""),
+        "cidade": row.get("Cidade", ""),
+        "bairro": row.get("Bairro", "").title(),
+        "endereco": row.get("Endereço", ""),
+        "preco": preco,
+        "avaliacao": avaliacao,
+        "desconto": desconto,
+        "financiamento": row.get("Financiamento", ""),
+        "modalidade": row.get("Modalidade de venda", ""),
+        "descricao": row.get("Descrição", ""),
+        "link": row.get("Link de acesso", ""),
+        "novo": row.get(id_col, "") in ids_novos,
+    }
 
 
 def gerar_html(
@@ -322,75 +333,313 @@ def gerar_html(
     cidades: list[str] | None,
     caminho_saida: Path,
 ):
+    import json
+
+    id_col = achar_coluna_id(todas) if todas else ""
+    ids_novos = {row.get(id_col) for row in novos} if todas else set()
+    registros = [_montar_registro_js(row, ids_novos, id_col) for row in todas]
+    registros.sort(key=lambda r: r["desconto"], reverse=True)
+
+    bairros = sorted({r["bairro"] for r in registros if r["bairro"]})
+    modalidades = sorted({r["modalidade"] for r in registros if r["modalidade"]})
+    cidades_disp = sorted({r["cidade"] for r in registros if r["cidade"]})
+
+    desconto_medio = sum(r["desconto"] for r in registros) / len(registros) if registros else 0
+    melhor = max(registros, key=lambda r: r["desconto"]) if registros else None
+
+    dados_json = json.dumps(registros, ensure_ascii=False).replace("</script>", "<\\/script>")
     filtro_txt = ", ".join(cidades) if cidades else "sem filtro (todas as cidades)"
+
+    opcoes_bairro = "".join(f'<option value="{b}">{b}</option>' for b in bairros)
+    opcoes_modalidade = "".join(f'<option value="{m}">{m}</option>' for m in modalidades)
+    opcoes_cidade = "".join(f'<option value="{c}">{c}</option>' for c in cidades_disp)
+
+    removidos_html = ""
+    if removidos:
+        itens = "".join(
+            f"<li>{r.get('Bairro','').title()} — {r.get('Endereço','')}</li>" for r in removidos
+        )
+        removidos_html = f"""
+        <details class="removidos">
+          <summary>{len(removidos)} imóvel(is) saíram da lista desde ontem</summary>
+          <ul>{itens}</ul>
+        </details>"""
+
+    resumo_melhor = ""
+    if melhor:
+        resumo_melhor = (
+            f'{melhor["desconto"]:.0f}% em {melhor["bairro"] or melhor["cidade"]}'
+        )
+
     html = f"""<!DOCTYPE html>
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Leilões Caixa - {uf} - {data_atual}</title>
+<title>Leilões Caixa · {uf} · {data_atual}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {{
-    --bg: #0f1115; --panel: #171a21; --border: #262a35;
-    --text: #e6e8ec; --muted: #9099a8; --accent: #4f8cff; --novo: #1f3a2a; --novo-border: #2f6b45;
+    --bg: #0a0b0d;
+    --panel: #131519;
+    --panel-2: #191c21;
+    --border: #262a31;
+    --text: #eceef1;
+    --muted: #8790a0;
+    --gold: #d4a35a;
+    --gold-dim: #8a713f;
+    --good: #4ea87a;
+    --mid: #c9a227;
+    --low: #6b7280;
+    --novo-bg: #1a2a20;
+    --novo-border: #2f6b45;
   }}
   * {{ box-sizing: border-box; }}
   body {{
-    margin: 0; padding: 32px 24px; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }}
-  .container {{ max-width: 1200px; margin: 0 auto; }}
-  h1 {{ font-size: 22px; margin: 0 0 4px; }}
-  .subtitulo {{ color: var(--muted); font-size: 14px; margin-bottom: 24px; }}
-  .stats {{ display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }}
-  .stat {{
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 18px; min-width: 140px;
+  .num {{ font-family: 'IBM Plex Mono', monospace; }}
+  .container {{ max-width: 1320px; margin: 0 auto; padding: 28px 20px 60px; }}
+
+  header.top {{ display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; }}
+  h1 {{
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; font-size: 34px; margin: 0; color: var(--text);
   }}
-  .stat .num {{ font-size: 24px; font-weight: 600; }}
-  .stat .label {{ font-size: 12px; color: var(--muted); margin-top: 2px; }}
-  section {{ margin-bottom: 36px; }}
-  h2 {{ font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }}
-  .tabela-wrap {{ overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }}
-  table {{ border-collapse: collapse; width: 100%; font-size: 13px; }}
-  th, td {{ padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }}
-  th {{ background: var(--panel); position: sticky; top: 0; color: var(--muted); font-weight: 600; }}
-  tr:hover td {{ background: #1c2029; }}
-  tr.novo td {{ background: var(--novo); }}
-  tr.novo:hover td {{ background: var(--novo-border); }}
-  a {{ color: var(--accent); }}
-  .vazio {{ color: var(--muted); font-style: italic; }}
-  details summary {{ cursor: pointer; color: var(--accent); margin-bottom: 12px; }}
+  h1 span {{ color: var(--gold); }}
+  .subtitulo {{ color: var(--muted); font-size: 13px; margin-top: 4px; }}
+
+  .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 22px; }}
+  .stat {{ background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }}
+  .stat .valor {{ font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 600; line-height: 1; }}
+  .stat .valor.gold {{ color: var(--gold); }}
+  .stat .rotulo {{ color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 5px; }}
+
+  .toolbar {{
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 16px; position: sticky; top: 12px; z-index: 5;
+  }}
+  .toolbar input[type="text"], .toolbar select {{
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: inherit;
+  }}
+  .toolbar input[type="text"] {{ flex: 1 1 220px; min-width: 160px; }}
+  .toolbar select {{ min-width: 130px; }}
+  .toolbar label {{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: flex; flex-direction: column; gap: 4px; }}
+  .toolbar .desconto-min {{ display: flex; align-items: center; gap: 8px; }}
+  .toolbar input[type="range"] {{ accent-color: var(--gold); width: 110px; }}
+  .contagem {{ margin-left: auto; color: var(--muted); font-size: 12px; }}
+  .contagem b {{ color: var(--text); }}
+
+  .tabela-wrap {{ overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }}
+  table {{ border-collapse: collapse; width: 100%; font-size: 13px; min-width: 900px; }}
+  th, td {{ padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }}
+  th {{
+    background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; cursor: pointer;
+    user-select: none;
+  }}
+  th:hover {{ color: var(--gold); }}
+  th.ativo {{ color: var(--gold); }}
+  tbody tr {{ background: var(--panel); }}
+  tbody tr:hover {{ background: var(--panel-2); }}
+  tbody tr.novo {{ background: var(--novo-bg); }}
+  tbody tr.novo:hover {{ background: #223829; }}
+  td.endereco {{ white-space: normal; max-width: 260px; }}
+  td.endereco .bairro {{ font-weight: 600; }}
+  td.endereco .rua {{ color: var(--muted); font-size: 12px; display: block; }}
+  .badge-novo {{
+    background: var(--good); color: #06170e; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 6px;
+  }}
+  .desconto-cel {{ display: flex; flex-direction: column; gap: 4px; min-width: 90px; }}
+  .desconto-num {{ font-weight: 600; }}
+  .barra {{ height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }}
+  .barra > i {{ display: block; height: 100%; border-radius: 2px; }}
+  .modalidade-tag {{
+    font-size: 11px; padding: 3px 8px; border-radius: 100px; border: 1px solid var(--border);
+    color: var(--muted); white-space: nowrap;
+  }}
+  a.ver-btn {{
+    display: inline-block; color: var(--bg); background: var(--gold); font-weight: 600;
+    font-size: 12px; padding: 5px 10px; border-radius: 6px; text-decoration: none; white-space: nowrap;
+  }}
+  a.ver-btn:hover {{ background: #e3b671; }}
+
+  .vazio {{ color: var(--muted); font-style: italic; padding: 24px; text-align: center; }}
+
+  .removidos {{ margin-top: 20px; color: var(--muted); font-size: 13px; }}
+  .removidos summary {{ cursor: pointer; color: var(--muted); }}
+  .removidos ul {{ margin: 8px 0 0; padding-left: 18px; }}
+
+  footer {{ margin-top: 30px; color: var(--muted); font-size: 11px; text-align: center; }}
+
+  @media (max-width: 640px) {{
+    h1 {{ font-size: 26px; }}
+    .toolbar {{ position: static; }}
+  }}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Leilões Caixa — {uf}</h1>
-  <div class="subtitulo">Atualizado em {data_atual} · Filtro de cidade: {filtro_txt}</div>
+  <header class="top">
+    <div>
+      <h1>Leilões <span>Caixa</span> — {uf}</h1>
+      <div class="subtitulo">Atualizado em {data_atual} · Região: {filtro_txt}</div>
+    </div>
+  </header>
 
   <div class="stats">
-    <div class="stat"><div class="num">{len(todas)}</div><div class="label">Total ativos hoje</div></div>
-    <div class="stat"><div class="num">{len(novos)}</div><div class="label">Novos hoje</div></div>
-    <div class="stat"><div class="num">{len(removidos)}</div><div class="label">Saíram da lista</div></div>
+    <div class="stat"><div class="valor">{len(todas)}</div><div class="rotulo">Ativos hoje</div></div>
+    <div class="stat"><div class="valor gold">{len(novos)}</div><div class="rotulo">Novos hoje</div></div>
+    <div class="stat"><div class="valor">{desconto_medio:.0f}%</div><div class="rotulo">Desconto médio</div></div>
+    <div class="stat"><div class="valor gold">{resumo_melhor or '—'}</div><div class="rotulo">Maior desconto</div></div>
   </div>
 
-  <section>
-    <h2>Novos hoje ({len(novos)})</h2>
-    {_tabela_html(novos, destacar=True)}
-  </section>
+  <div class="toolbar">
+    <input type="text" id="busca" placeholder="Buscar por endereço, bairro...">
+    <label>Cidade
+      <select id="filtro-cidade"><option value="">Todas</option>{opcoes_cidade}</select>
+    </label>
+    <label>Bairro
+      <select id="filtro-bairro"><option value="">Todos</option>{opcoes_bairro}</select>
+    </label>
+    <label>Modalidade
+      <select id="filtro-modalidade"><option value="">Todas</option>{opcoes_modalidade}</select>
+    </label>
+    <label>Só novos hoje
+      <select id="filtro-novos"><option value="">Todos</option><option value="1">Sim</option></select>
+    </label>
+    <div class="desconto-min">
+      <label>Desconto mín. <span id="desconto-min-valor">0%</span>
+        <input type="range" id="desconto-min" min="0" max="90" value="0" step="5">
+      </label>
+    </div>
+    <span class="contagem"><b id="contagem-num">{len(todas)}</b> imóveis</span>
+  </div>
 
-  <section>
-    <h2>Saíram da lista desde ontem ({len(removidos)})</h2>
-    {_tabela_html(removidos)}
-  </section>
+  <div class="tabela-wrap">
+    <table id="tabela">
+      <thead>
+        <tr>
+          <th data-col="bairro">Local</th>
+          <th data-col="preco" class="num">Preço</th>
+          <th data-col="avaliacao" class="num">Avaliação</th>
+          <th data-col="desconto" class="ativo">Desconto</th>
+          <th data-col="modalidade">Modalidade</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="vazio" class="vazio" style="display:none">Nenhum imóvel bate com esse filtro.</div>
+  </div>
 
-  <section>
-    <details>
-      <summary>Ver todos os {len(todas)} imóveis ativos filtrados</summary>
-      {_tabela_html(todas)}
-    </details>
-  </section>
+  {removidos_html}
+
+  <footer>Fonte: venda-imoveis.caixa.gov.br · dados públicos da Caixa Econômica Federal</footer>
 </div>
+
+<script>
+const DADOS = {dados_json};
+
+const fmtBRL = (v) => v.toLocaleString('pt-BR', {{style:'currency', currency:'BRL', maximumFractionDigits:0}});
+
+function corDesconto(d) {{
+  if (d >= 50) return 'var(--good)';
+  if (d >= 30) return 'var(--mid)';
+  return 'var(--low)';
+}}
+
+let ordenarPor = 'desconto';
+let ordemAsc = false;
+
+function aplicarFiltros() {{
+  const busca = document.getElementById('busca').value.trim().toLowerCase();
+  const cidade = document.getElementById('filtro-cidade').value;
+  const bairro = document.getElementById('filtro-bairro').value;
+  const modalidade = document.getElementById('filtro-modalidade').value;
+  const soNovos = document.getElementById('filtro-novos').value;
+  const descMin = parseInt(document.getElementById('desconto-min').value, 10);
+
+  let filtrados = DADOS.filter(r => {{
+    if (busca && !(r.endereco.toLowerCase().includes(busca) || r.bairro.toLowerCase().includes(busca))) return false;
+    if (cidade && r.cidade !== cidade) return false;
+    if (bairro && r.bairro !== bairro) return false;
+    if (modalidade && r.modalidade !== modalidade) return false;
+    if (soNovos === '1' && !r.novo) return false;
+    if (r.desconto < descMin) return false;
+    return true;
+  }});
+
+  filtrados.sort((a, b) => {{
+    let va = a[ordenarPor], vb = b[ordenarPor];
+    if (typeof va === 'string') {{ va = va.toLowerCase(); vb = vb.toLowerCase(); }}
+    if (va < vb) return ordemAsc ? -1 : 1;
+    if (va > vb) return ordemAsc ? 1 : -1;
+    return 0;
+  }});
+
+  renderizar(filtrados);
+}}
+
+function renderizar(lista) {{
+  const tbody = document.getElementById('tbody');
+  const vazio = document.getElementById('vazio');
+  document.getElementById('contagem-num').textContent = lista.length;
+
+  if (lista.length === 0) {{
+    tbody.innerHTML = '';
+    vazio.style.display = 'block';
+    return;
+  }}
+  vazio.style.display = 'none';
+
+  tbody.innerHTML = lista.map(r => `
+    <tr class="${{r.novo ? 'novo' : ''}}">
+      <td class="endereco">
+        <span class="bairro">${{r.bairro || r.cidade}}${{r.novo ? '<span class="badge-novo">novo</span>' : ''}}</span>
+        <span class="rua">${{r.endereco}}</span>
+      </td>
+      <td class="num">${{fmtBRL(r.preco)}}</td>
+      <td class="num">${{fmtBRL(r.avaliacao)}}</td>
+      <td>
+        <div class="desconto-cel">
+          <span class="desconto-num num" style="color:${{corDesconto(r.desconto)}}">${{r.desconto.toFixed(0)}}%</span>
+          <div class="barra"><i style="width:${{Math.min(r.desconto,100)}}%; background:${{corDesconto(r.desconto)}}"></i></div>
+        </div>
+      </td>
+      <td><span class="modalidade-tag">${{r.modalidade}}</span></td>
+      <td><a class="ver-btn" href="${{r.link}}" target="_blank" rel="noopener">Ver no site →</a></td>
+    </tr>
+  `).join('');
+}}
+
+document.querySelectorAll('th[data-col]').forEach(th => {{
+  th.addEventListener('click', () => {{
+    const col = th.dataset.col;
+    if (ordenarPor === col) {{ ordemAsc = !ordemAsc; }}
+    else {{ ordenarPor = col; ordemAsc = false; }}
+    document.querySelectorAll('th[data-col]').forEach(t => t.classList.remove('ativo'));
+    th.classList.add('ativo');
+    aplicarFiltros();
+  }});
+}});
+
+document.getElementById('desconto-min').addEventListener('input', (e) => {{
+  document.getElementById('desconto-min-valor').textContent = e.target.value + '%';
+  aplicarFiltros();
+}});
+['busca','filtro-cidade','filtro-bairro','filtro-modalidade','filtro-novos'].forEach(id => {{
+  document.getElementById(id).addEventListener('input', aplicarFiltros);
+}});
+
+aplicarFiltros();
+</script>
 </body>
 </html>"""
     caminho_saida.parent.mkdir(parents=True, exist_ok=True)
@@ -399,6 +648,7 @@ def gerar_html(
 
 
 def processar_uf(
+
     uf: str,
     outdir: Path,
     cidades: list[str] | None = None,
