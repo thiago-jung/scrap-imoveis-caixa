@@ -66,6 +66,206 @@ def normalizar(texto: str) -> str:
     sem_acento = "".join(c for c in nfkd if not unicodedata.combining(c))
     return sem_acento.upper()
 
+
+# ---------------------------------------------------------------------------
+# Índice de risco por município (criminalidade, normalizada por população)
+#
+# Fonte: SSP-RS via portal de dados abertos do RS (dados.rs.gov.br), datasets
+# "Indicadores Criminais de <ano>" -- ocorrências por município, publicadas
+# mensalmente sob a Lei Estadual 15.610/2021.
+#
+# LIMITAÇÃO IMPORTANTE: a granularidade oficial e programaticamente acessível
+# é por MUNICÍPIO, não por bairro. Isso significa que todos os imóveis dentro
+# de Porto Alegre recebem o mesmo nível de risco, mesmo sabendo que a
+# variação de segurança entre bairros de POA é grande. É um proxy imperfeito,
+# não um índice de risco por endereço.
+#
+# Criminalidade não muda dia a dia -- por isso esses dados são cacheados em
+# disco e só re-baixados a cada CACHE_RISCO_DIAS dias, em vez de toda execução.
+# ---------------------------------------------------------------------------
+
+CKAN_API_INDICADORES = "https://dados.rs.gov.br/api/3/action/package_show"
+CACHE_RISCO_DIAS = 25
+
+# População (Censo IBGE 2022) dos municípios da Região Metropolitana de Porto
+# Alegre cobertos pelo filtro CIDADES_RMPA. Atualize se a lista de cidades mudar.
+POPULACAO_MUNICIPIOS_RMPA = {
+    "PORTO ALEGRE": 1_332_570,
+    "CANOAS": 347_657,
+    "ALVORADA": 187_315,
+    "VIAMAO": 224_116,
+    "CACHOEIRINHA": 136_258,
+    "GRAVATAI": 265_070,
+    "GUAIBA": 92_924,
+    "ESTEIO": 76_137,
+    "SAPUCAIA DO SUL": 132_107,
+    "NOVO HAMBURGO": 227_732,
+    "SAO LEOPOLDO": 217_409,
+    "ELDORADO DO SUL": 39_559,
+}
+
+
+def _consultar_recursos_indicadores_criminais(anos=(2026, 2025)) -> list[dict]:
+    """Pergunta pra API do dados.rs.gov.br quais arquivos XLSX de indicadores
+    criminais existem pros anos informados. Usa a API (não links fixos) pra
+    não quebrar quando novos meses/anos forem publicados."""
+    recursos = []
+    for ano in anos:
+        try:
+            resp = requests.get(
+                CKAN_API_INDICADORES,
+                params={"id": f"indicadores-criminais-de-{ano}"},
+                headers=HEADERS,
+                timeout=30,
+            )
+            if resp.status_code != 200:
+                continue
+            dados = resp.json()
+            if not dados.get("success"):
+                continue
+            for r in dados["result"].get("resources", []):
+                url = r.get("url", "")
+                if url.lower().endswith((".xlsx", ".xls")):
+                    recursos.append({"ano": ano, "nome": r.get("name", ""), "url": url})
+        except (requests.RequestException, ValueError) as e:
+            log.warning("Falha ao consultar indicadores criminais de %s: %s", ano, e)
+    return recursos
+
+
+def _baixar_ocorrencias_por_municipio(meses_max: int = 12) -> dict:
+    """Baixa os XLSX mensais de indicadores criminais e soma ocorrências por
+    município (todas as categorias de crime somadas), últimos `meses_max` meses
+    disponíveis."""
+    try:
+        from openpyxl import load_workbook
+    except ImportError as e:
+        raise RuntimeError(
+            "openpyxl não instalado. Rode: pip install openpyxl"
+        ) from e
+
+    recursos = _consultar_recursos_indicadores_criminais()
+    if not recursos:
+        log.warning("Não encontrei arquivos de indicadores criminais no dados.rs.gov.br.")
+        return {}
+
+    recursos = sorted(recursos, key=lambda r: (r["ano"], r["nome"]), reverse=True)[:meses_max]
+
+    totais: dict = {}
+    for r in recursos:
+        try:
+            resp = requests.get(r["url"], headers=HEADERS, timeout=60)
+            resp.raise_for_status()
+            wb = load_workbook(io.BytesIO(resp.content), read_only=True, data_only=True)
+            ws = wb.active
+            linhas = list(ws.iter_rows(values_only=True))
+        except Exception as e:
+            log.warning("Falha ao baixar/ler %s (%s): %s", r["nome"], r["url"], e)
+            continue
+
+        idx_header = next(
+            (i for i, linha in enumerate(linhas)
+             if any(isinstance(c, str) and "MUNIC" in c.upper() for c in linha if c)),
+            None,
+        )
+        if idx_header is None:
+            log.warning("Não achei coluna de município em %s", r["nome"])
+            continue
+
+        cabecalho = linhas[idx_header]
+        col_municipio = next(
+            i for i, c in enumerate(cabecalho) if isinstance(c, str) and "MUNIC" in c.upper()
+        )
+
+        for linha in linhas[idx_header + 1:]:
+            if not linha or linha[col_municipio] is None:
+                continue
+            municipio = normalizar(str(linha[col_municipio]))
+            if municipio not in POPULACAO_MUNICIPIOS_RMPA:
+                continue
+            soma_linha = sum(
+                v for i, v in enumerate(linha)
+                if i != col_municipio and isinstance(v, (int, float))
+            )
+            totais[municipio] = totais.get(municipio, 0) + soma_linha
+
+    return totais
+
+
+def _classificar_risco(taxa_100k: float, todas_taxas: list) -> str:
+    """Classifica em baixo/médio/alto usando tercis da amostra atual (RMPA)."""
+    if not todas_taxas:
+        return "desconhecido"
+    ordenadas = sorted(todas_taxas)
+    n = len(ordenadas)
+    t1 = ordenadas[max(n // 3 - 1, 0)]
+    t2 = ordenadas[max((2 * n) // 3 - 1, 0)]
+    if taxa_100k <= t1:
+        return "baixo"
+    if taxa_100k <= t2:
+        return "medio"
+    return "alto"
+
+
+def obter_risco_por_municipio(cache_path: Path) -> dict:
+    """Retorna {municipio: {ocorrencias, populacao, taxa_100k, risco}}.
+
+    Usa cache em disco (CACHE_RISCO_DIAS dias) pra não re-baixar os XLSX da
+    SSP-RS toda execução -- criminalidade muda devagar, ao contrário dos
+    leilões."""
+    import json
+
+    if cache_path.exists():
+        try:
+            cache = json.loads(cache_path.read_text(encoding="utf-8"))
+            idade_dias = (datetime.now() - datetime.fromisoformat(cache["gerado_em"])).days
+            if idade_dias < CACHE_RISCO_DIAS:
+                log.info("Usando cache de criminalidade (%d dia(s) de idade).", idade_dias)
+                return cache["municipios"]
+        except Exception as e:
+            log.warning("Cache de criminalidade inválido, recalculando: %s", e)
+
+    log.info("Baixando indicadores criminais da SSP-RS (dados.rs.gov.br)...")
+    try:
+        totais = _baixar_ocorrencias_por_municipio()
+    except RuntimeError as e:
+        log.warning("%s -- seguindo sem índice de risco.", e)
+        return {}
+
+    if not totais:
+        log.warning("Não consegui calcular índice de risco -- seguindo sem essa coluna.")
+        return {}
+
+    resultado = {}
+    for municipio, populacao in POPULACAO_MUNICIPIOS_RMPA.items():
+        ocorrencias = totais.get(municipio, 0)
+        taxa = (ocorrencias / populacao) * 100_000 if populacao else 0
+        resultado[municipio] = {
+            "ocorrencias": ocorrencias,
+            "populacao": populacao,
+            "taxa_100k": round(taxa, 1),
+        }
+
+    todas_taxas = [v["taxa_100k"] for v in resultado.values()]
+    for municipio in resultado:
+        resultado[municipio]["risco"] = _classificar_risco(resultado[municipio]["taxa_100k"], todas_taxas)
+
+    for municipio, info in sorted(resultado.items(), key=lambda kv: -kv[1]["taxa_100k"]):
+        log.info(
+            "Risco %s: %s ocorrências/12m, %.0f/100k hab. -> %s",
+            municipio, info["ocorrencias"], info["taxa_100k"], info["risco"],
+        )
+
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps({"gerado_em": datetime.now().isoformat(), "municipios": resultado}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        log.warning("Não consegui salvar cache de criminalidade: %s", e)
+
+    return resultado
+
 # Coluna que identifica unicamente o imóvel dentro do CSV.
 # O nome exato pode variar levemente (ex: "N° do imóvel" vs "Nº do imóvel");
 # ajuste aqui se o parsing reclamar na primeira execução real.
@@ -304,13 +504,23 @@ def _parar_desconto(texto: str) -> float:
         return 0.0
 
 
-def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str) -> dict:
+def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str, risco_por_municipio: dict, risco_bairro_poa: dict | None = None) -> dict:
     preco = _parar_valor_brl(row.get("Preço", ""))
     avaliacao = _parar_valor_brl(row.get("Valor de avaliação", ""))
     desconto = _parar_desconto(row.get("Desconto", ""))
+    cidade = row.get("Cidade", "")
+    bairro_norm = normalizar(row.get("Bairro", ""))
+    cidade_norm = normalizar(cidade)
+    info_risco = None
+    if risco_bairro_poa:
+        bairros_cidade = risco_bairro_poa.get(cidade_norm, {})
+        if bairros_cidade:
+            info_risco = bairros_cidade.get(bairro_norm)
+    if info_risco is None:
+        info_risco = risco_por_municipio.get(cidade_norm, {})
     return {
         "id": row.get(id_col, ""),
-        "cidade": row.get("Cidade", ""),
+        "cidade": cidade,
         "bairro": row.get("Bairro", "").title(),
         "endereco": row.get("Endereço", ""),
         "preco": preco,
@@ -321,6 +531,8 @@ def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str) -> dict:
         "descricao": row.get("Descrição", ""),
         "link": row.get("Link de acesso", ""),
         "novo": row.get(id_col, "") in ids_novos,
+        "risco": info_risco.get("risco", "desconhecido"),
+        "taxa_criminalidade": info_risco.get("taxa_100k"),
     }
 
 
@@ -332,17 +544,21 @@ def gerar_html(
     todas: list[dict],
     cidades: list[str] | None,
     caminho_saida: Path,
+    risco_por_municipio: dict | None = None,
+    risco_bairro_poa: dict | None = None,
 ):
     import json
 
+    risco_por_municipio = risco_por_municipio or {}
     id_col = achar_coluna_id(todas) if todas else ""
     ids_novos = {row.get(id_col) for row in novos} if todas else set()
-    registros = [_montar_registro_js(row, ids_novos, id_col) for row in todas]
+    registros = [_montar_registro_js(row, ids_novos, id_col, risco_por_municipio, risco_bairro_poa) for row in todas]
     registros.sort(key=lambda r: r["desconto"], reverse=True)
 
     bairros = sorted({r["bairro"] for r in registros if r["bairro"]})
     modalidades = sorted({r["modalidade"] for r in registros if r["modalidade"]})
     cidades_disp = sorted({r["cidade"] for r in registros if r["cidade"]})
+    tem_dados_risco = any(r["risco"] != "desconhecido" for r in registros)
 
     desconto_medio = sum(r["desconto"] for r in registros) / len(registros) if registros else 0
     melhor = max(registros, key=lambda r: r["desconto"]) if registros else None
@@ -370,6 +586,28 @@ def gerar_html(
         resumo_melhor = (
             f'{melhor["desconto"]:.0f}% em {melhor["bairro"] or melhor["cidade"]}'
         )
+
+    filtro_risco_html = ""
+    aviso_risco_html = ""
+    if tem_dados_risco:
+        filtro_risco_html = """
+    <label>Risco
+      <select id="filtro-risco"><option value="">Todos</option><option value="baixo">Baixo</option><option value="medio">Médio</option><option value="alto">Alto</option></select>
+    </label>"""
+        if risco_bairro_poa:
+            aviso_risco_html = (
+                '<div class="aviso-risco">⚠ Risco calculado por <b>bairro</b> em Porto Alegre '
+                '(ocorrências/100 mil hab., dados SSP-RS + população Censo IBGE 2022) e por '
+                '<b>cidade</b> nas demais localidades da região metropolitana. É um proxy de '
+                'segurança pública, não um índice de retorno do investimento.</div>'
+            )
+        else:
+            aviso_risco_html = (
+                '<div class="aviso-risco">⚠ O risco é calculado por <b>cidade</b> (dados SSP-RS, '
+                'ocorrências/100 mil hab.), não por bairro — a fonte pública não disponibilizou essa '
+                'granularidade nesta execução. Dentro de Porto Alegre, todos os bairros recebem '
+                'o mesmo nível. Trate como triagem inicial, não como avaliação do endereço específico.</div>'
+            )
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-br">
@@ -464,6 +702,17 @@ def gerar_html(
     font-size: 11px; padding: 3px 8px; border-radius: 100px; border: 1px solid var(--border);
     color: var(--muted); white-space: nowrap;
   }}
+  .risco-tag {{
+    font-size: 11px; padding: 3px 8px; border-radius: 100px; font-weight: 600; white-space: nowrap;
+  }}
+  .risco-baixo {{ background: rgba(78,168,122,0.15); color: var(--good); }}
+  .risco-medio {{ background: rgba(201,162,39,0.15); color: var(--mid); }}
+  .risco-alto {{ background: rgba(200,90,80,0.15); color: #d97a6c; }}
+  .risco-desconhecido {{ background: transparent; color: var(--muted); border: 1px dashed var(--border); }}
+  .aviso-risco {{
+    font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; line-height: 1.5;
+  }}
   a.ver-btn {{
     display: inline-block; color: var(--bg); background: var(--gold); font-weight: 600;
     font-size: 12px; padding: 5px 10px; border-radius: 6px; text-decoration: none; white-space: nowrap;
@@ -513,7 +762,7 @@ def gerar_html(
     </label>
     <label>Só novos hoje
       <select id="filtro-novos"><option value="">Todos</option><option value="1">Sim</option></select>
-    </label>
+    </label>{filtro_risco_html}
     <div class="desconto-min">
       <label>Desconto mín. <span id="desconto-min-valor">0%</span>
         <input type="range" id="desconto-min" min="0" max="90" value="0" step="5">
@@ -521,6 +770,8 @@ def gerar_html(
     </div>
     <span class="contagem"><b id="contagem-num">{len(todas)}</b> imóveis</span>
   </div>
+
+  {aviso_risco_html}
 
   <div class="tabela-wrap">
     <table id="tabela">
@@ -530,6 +781,7 @@ def gerar_html(
           <th data-col="preco" class="num">Preço</th>
           <th data-col="avaliacao" class="num">Avaliação</th>
           <th data-col="desconto" class="ativo">Desconto</th>
+          <th data-col="risco">Risco</th>
           <th data-col="modalidade">Modalidade</th>
           <th></th>
         </tr>
@@ -565,6 +817,8 @@ function aplicarFiltros() {{
   const modalidade = document.getElementById('filtro-modalidade').value;
   const soNovos = document.getElementById('filtro-novos').value;
   const descMin = parseInt(document.getElementById('desconto-min').value, 10);
+  const elFiltroRisco = document.getElementById('filtro-risco');
+  const risco = elFiltroRisco ? elFiltroRisco.value : '';
 
   let filtrados = DADOS.filter(r => {{
     if (busca && !(r.endereco.toLowerCase().includes(busca) || r.bairro.toLowerCase().includes(busca))) return false;
@@ -572,6 +826,7 @@ function aplicarFiltros() {{
     if (bairro && r.bairro !== bairro) return false;
     if (modalidade && r.modalidade !== modalidade) return false;
     if (soNovos === '1' && !r.novo) return false;
+    if (risco && r.risco !== risco) return false;
     if (r.desconto < descMin) return false;
     return true;
   }});
@@ -585,6 +840,11 @@ function aplicarFiltros() {{
   }});
 
   renderizar(filtrados);
+}}
+
+function rotuloRisco(r) {{
+  const rotulos = {{baixo: 'Baixo', medio: 'Médio', alto: 'Alto', desconhecido: '—'}};
+  return rotulos[r] || '—';
 }}
 
 function renderizar(lista) {{
@@ -613,6 +873,7 @@ function renderizar(lista) {{
           <div class="barra"><i style="width:${{Math.min(r.desconto,100)}}%; background:${{corDesconto(r.desconto)}}"></i></div>
         </div>
       </td>
+      <td><span class="risco-tag risco-${{r.risco}}" title="${{r.taxa_criminalidade != null ? r.taxa_criminalidade + ' ocorrências/100k hab. (' + r.cidade + ')' : 'Sem dado'}}">${{rotuloRisco(r.risco)}}</span></td>
       <td><span class="modalidade-tag">${{r.modalidade}}</span></td>
       <td><a class="ver-btn" href="${{r.link}}" target="_blank" rel="noopener">Ver no site →</a></td>
     </tr>
@@ -634,8 +895,9 @@ document.getElementById('desconto-min').addEventListener('input', (e) => {{
   document.getElementById('desconto-min-valor').textContent = e.target.value + '%';
   aplicarFiltros();
 }});
-['busca','filtro-cidade','filtro-bairro','filtro-modalidade','filtro-novos'].forEach(id => {{
-  document.getElementById(id).addEventListener('input', aplicarFiltros);
+['busca','filtro-cidade','filtro-bairro','filtro-modalidade','filtro-novos','filtro-risco'].forEach(id => {{
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', aplicarFiltros);
 }});
 
 aplicarFiltros();
@@ -647,14 +909,541 @@ aplicarFiltros();
     log.info("Relatório HTML salvo em %s", caminho_saida)
 
 
-def processar_uf(
+def _descobrir_zips_ocorrencias_desagregadas(headless: bool = True, max_arquivos: int = 2) -> list:
+    """Reusa o navegador pra achar os links dos ZIPs de ocorrências desagregadas
+    (artigo 3º, Lei 15.610/2021 -- tem campo de bairro) na página de dados
+    abertos da SSP-RS. Pega os mais recentes (ano atual + ano anterior)."""
+    links = explorar_dados_abertos_ssp(headless=headless)
+    candidatos = [
+        l for l in links
+        if "ocorrencias" in l["href"].lower() or "ocorrencias" in l["texto"].lower()
+    ]
+    # heurística: nome/texto do link costuma trazer o ano (ex: "2026 (janeiro a maio)")
+    candidatos_ordenados = sorted(candidatos, key=lambda l: l["texto"], reverse=True)
+    return candidatos_ordenados[:max_arquivos]
 
+
+def _extrair_csv_de_zip(conteudo_zip: bytes):
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(conteudo_zip)) as z:
+        nomes_csv = [n for n in z.namelist() if n.lower().endswith((".csv", ".txt"))]
+        if not nomes_csv:
+            return None
+        with z.open(nomes_csv[0]) as f:
+            return f.read()
+
+
+# Variações de nome de bairro como aparecem nos BOs da SSP-RS vs. nome oficial do IBGE/Prefeitura.
+# Alimentado pelas maiores discrepâncias encontradas ao processar os microdados.
+_ALIASES_BAIRRO_POA = {
+    "PASSO D'AREIA": "PASSO DA AREIA",
+    "PASSO D AREIA": "PASSO DA AREIA",
+    "LOMBA PINHEIRO": "LOMBA DO PINHEIRO",
+    "ABERTA MORROS": "ABERTA DOS MORROS",
+    "JARDIM DONA LEOPOLDINA": "JARDIM LEOPOLDINA",
+    "MONT SERRAT": "MONT'SERRAT",
+    "MONTSERRAT": "MONT'SERRAT",
+    "CORONEL APARICIO BORGES": "CORONEL APARÍCIO BORGES",
+    "CHAPEU DO SOL": "CHAPÉU DO SOL",
+    "TRES FIGUEIRAS": "TRÊS FIGUEIRAS",
+    "SAO SEBASTIAO": "SÃO SEBASTIÃO",
+    "SAO GERALDO": "SÃO GERALDO",
+    "SAO JOAO": "SÃO JOÃO",
+    "SAO CAETANO": "SÃO CAETANO",
+}
+
+
+def _resolver_bairro_oficial(bruto_norm: str, oficiais_norm: set, oficiais_lista: list) -> str | None:
+    """Tenta casar um nome de bairro 'bruto' (como vem no BO da SSP, às vezes com
+    variações/sufixos) com o nome oficial usado em POPULACAO_BAIRROS_POA."""
+    if not bruto_norm:
+        return None
+    if bruto_norm in oficiais_norm:
+        return bruto_norm
+    # alias explícito (variações frequentes mapeadas manualmente)
+    alias = _ALIASES_BAIRRO_POA.get(bruto_norm)
+    if alias:
+        alias_norm = normalizar(alias)
+        if alias_norm in oficiais_norm:
+            return alias_norm
+    # match por contenção (ex: "CENTRO HISTORICO REGIAO 1" contém "CENTRO HISTORICO")
+    candidatos = [o for o in oficiais_lista if o in bruto_norm or bruto_norm in o]
+    if candidatos:
+        return max(candidatos, key=len)
+    return None
+
+
+def _baixar_ocorrencias_por_bairro_poa(headless: bool = True) -> dict:
+    """Baixa os ZIPs de ocorrências desagregadas mais recentes, filtra as cidades
+    da RMPA que têm dados por bairro no IBGE e conta ocorrências por (cidade, bairro)."""
+    zips = _descobrir_zips_ocorrencias_desagregadas(headless=headless)
+    if not zips:
+        log.warning("Não achei arquivos de ocorrências desagregadas na página da SSP-RS.")
+        return {}
+
+    # conjuntos de bairros por cidade para lookup rápido
+    oficiais_por_cidade = {
+        cidade: set(bairros.keys())
+        for cidade, bairros in POPULACAO_BAIRROS_RMPA.items()
+    }
+    lista_por_cidade = {
+        cidade: list(bairros.keys())
+        for cidade, bairros in POPULACAO_BAIRROS_RMPA.items()
+    }
+    cidades_com_dados = set(POPULACAO_BAIRROS_RMPA.keys())
+
+    # contagem: {(cidade_norm, bairro_norm): n_ocorrencias}
+    contagem: dict = {}
+    total_linhas_rmpa = 0
+    nao_reconhecidos: dict = {}
+    for item in zips:
+        try:
+            resp = requests.get(item["href"], headers=HEADERS, timeout=120)
+            resp.raise_for_status()
+            conteudo_csv = _extrair_csv_de_zip(resp.content)
+            if not conteudo_csv:
+                log.warning("Nenhum CSV encontrado dentro do ZIP: %s", item["href"])
+                continue
+        except Exception as e:
+            log.warning("Falha ao baixar/extrair %s: %s", item["href"], e)
+            continue
+
+        texto = conteudo_csv.decode("latin-1", errors="replace")
+        sniffer = csv.Sniffer()
+        try:
+            dialect = sniffer.sniff(texto[:2000], delimiters=";,")
+        except csv.Error:
+            dialect = csv.excel
+            dialect.delimiter = ";"
+        leitor = csv.DictReader(io.StringIO(texto), dialect=dialect)
+
+        colunas = leitor.fieldnames or []
+        col_municipio = next((c for c in colunas if c and "MUNIC" in c.upper()), None)
+        col_bairro = next((c for c in colunas if c and "BAIRRO" in c.upper()), None)
+        if not col_municipio or not col_bairro:
+            log.warning("Não achei colunas de município/bairro em %s (colunas: %s)", item["href"], colunas)
+            continue
+
+        for linha in leitor:
+            municipio = normalizar(str(linha.get(col_municipio, "")))
+            if municipio not in cidades_com_dados:
+                continue
+            total_linhas_rmpa += 1
+            bairro_bruto = normalizar(str(linha.get(col_bairro, "")).strip())
+            if not bairro_bruto:
+                continue
+            resolvido = _resolver_bairro_oficial(
+                bairro_bruto, oficiais_por_cidade[municipio], lista_por_cidade[municipio]
+            )
+            if resolvido:
+                chave = (municipio, resolvido)
+                contagem[chave] = contagem.get(chave, 0) + 1
+            else:
+                nao_reconhecidos[bairro_bruto] = nao_reconhecidos.get(bairro_bruto, 0) + 1
+
+        cidades_encontradas = len({k[0] for k in contagem})
+        bairros_encontrados = len(contagem)
+        log.info("Processado %s: %d bairros em %d cidades reconhecidos até agora",
+                 item["texto"], bairros_encontrados, cidades_encontradas)
+
+    reconhecidas = sum(contagem.values())
+    total = reconhecidas + sum(nao_reconhecidos.values())
+    if total:
+        log.info(
+            "Match de bairro RMPA: %d/%d ocorrências reconhecidas (%.0f%%). "
+            "Maiores não reconhecidas: %s",
+            reconhecidas, total, 100 * reconhecidas / total,
+            sorted(nao_reconhecidos.items(), key=lambda kv: -kv[1])[:5],
+        )
+
+    return contagem
+
+
+# ---------------------------------------------------------------------------
+# População por bairro das cidades da RMPA com dados no IBGE Censo 2022.
+# Fonte: IBGE Censo Demográfico 2022, Tabela 9923 (população residente por bairro).
+#
+# Cidades COM dados por bairro: Porto Alegre (94), Canoas (17), Viamão (19),
+#   Guaíba (17), Esteio (13), Novo Hamburgo (27), São Leopoldo (24), Eldorado do Sul (21)
+# Cidades SEM dados por bairro no IBGE (ficam no nível de cidade):
+#   Alvorada, Cachoeirinha, Gravataí, Sapucaia do Sul
+# ---------------------------------------------------------------------------
+_POPULACAO_BAIRROS_RMPA_RAW = [
+  # PORTO ALEGRE
+  ("PORTO ALEGRE", "RESTINGA", 62448),
+  ("PORTO ALEGRE", "LOMBA DO PINHEIRO", 59200),
+  ("PORTO ALEGRE", "SARANDI", 51539),
+  ("PORTO ALEGRE", "MARIO QUINTANA", 44068),
+  ("PORTO ALEGRE", "PARTENON", 43587),
+  ("PORTO ALEGRE", "PETROPOLIS", 37613),
+  ("PORTO ALEGRE", "SANTA ROSA DE LIMA", 34627),
+  ("PORTO ALEGRE", "VILA NOVA", 32217),
+  ("PORTO ALEGRE", "SANTA TEREZA", 31358),
+  ("PORTO ALEGRE", "CENTRO HISTORICO", 30569),
+  ("PORTO ALEGRE", "HIPICA", 28643),
+  ("PORTO ALEGRE", "MENINO DEUS", 27961),
+  ("PORTO ALEGRE", "RUBEM BERTA", 27930),
+  ("PORTO ALEGRE", "CAVALHADA", 25209),
+  ("PORTO ALEGRE", "CRISTAL", 24851),
+  ("PORTO ALEGRE", "BOM JESUS", 24589),
+  ("PORTO ALEGRE", "VILA SAO JOSE", 24011),
+  ("PORTO ALEGRE", "JARDIM CARVALHO", 23405),
+  ("PORTO ALEGRE", "PASSO DA AREIA", 22530),
+  ("PORTO ALEGRE", "MORRO SANTANA", 21640),
+  ("PORTO ALEGRE", "NONOAI", 20776),
+  ("PORTO ALEGRE", "CORONEL APARICIO BORGES", 18966),
+  ("PORTO ALEGRE", "VILA IPIRANGA", 18041),
+  ("PORTO ALEGRE", "CAMAQUA", 17935),
+  ("PORTO ALEGRE", "SANTANA", 17794),
+  ("PORTO ALEGRE", "FARRAPOS", 17591),
+  ("PORTO ALEGRE", "JARDIM ITU", 17565),
+  ("PORTO ALEGRE", "TRISTEZA", 17201),
+  ("PORTO ALEGRE", "JARDIM LEOPOLDINA", 16151),
+  ("PORTO ALEGRE", "RIO BRANCO", 15710),
+  ("PORTO ALEGRE", "GLORIA", 15248),
+  ("PORTO ALEGRE", "CRISTO REDENTOR", 15144),
+  ("PORTO ALEGRE", "PASSO DAS PEDRAS", 14435),
+  ("PORTO ALEGRE", "COSTA E SILVA", 13585),
+  ("PORTO ALEGRE", "IPANEMA", 13403),
+  ("PORTO ALEGRE", "SANTO ANTONIO", 13105),
+  ("PORTO ALEGRE", "TERESOPOLIS", 13072),
+  ("PORTO ALEGRE", "CIDADE BAIXA", 13014),
+  ("PORTO ALEGRE", "HUMAITA", 12744),
+  ("PORTO ALEGRE", "AZENHA", 12064),
+  ("PORTO ALEGRE", "BELA VISTA", 11819),
+  ("PORTO ALEGRE", "VILA JARDIM", 11411),
+  ("PORTO ALEGRE", "JARDIM BOTANICO", 11349),
+  ("PORTO ALEGRE", "JARDIM SABARA", 11270),
+  ("PORTO ALEGRE", "BELEM VELHO", 10893),
+  ("PORTO ALEGRE", "SAO JOAO", 10621),
+  ("PORTO ALEGRE", "VILA JOAO PESSOA", 10431),
+  ("PORTO ALEGRE", "MONT'SERRAT", 10357),
+  ("PORTO ALEGRE", "HIGIENOPOLIS", 10284),
+  ("PORTO ALEGRE", "BOM FIM", 10160),
+  ("PORTO ALEGRE", "MOINHOS DE VENTO", 9995),
+  ("PORTO ALEGRE", "ABERTA DOS MORROS", 9854),
+  ("PORTO ALEGRE", "BELEM NOVO", 9851),
+  ("PORTO ALEGRE", "BOA VISTA", 9254),
+  ("PORTO ALEGRE", "CASCATA", 9234),
+  ("PORTO ALEGRE", "PONTA GROSSA", 8939),
+  ("PORTO ALEGRE", "AUXILIADORA", 8909),
+  ("PORTO ALEGRE", "FLORESTA", 8798),
+  ("PORTO ALEGRE", "MEDIANEIRA", 8749),
+  ("PORTO ALEGRE", "CAMPO NOVO", 8743),
+  ("PORTO ALEGRE", "JARDIM LINDOIA", 7587),
+  ("PORTO ALEGRE", "SAO SEBASTIAO", 7514),
+  ("PORTO ALEGRE", "PITINGA", 7012),
+  ("PORTO ALEGRE", "SAO GERALDO", 6948),
+  ("PORTO ALEGRE", "INDEPENDENCIA", 6885),
+  ("PORTO ALEGRE", "LAMI", 6677),
+  ("PORTO ALEGRE", "PARQUE SANTA FE", 6673),
+  ("PORTO ALEGRE", "JARDIM DO SALSO", 6576),
+  ("PORTO ALEGRE", "ARQUIPELAGO", 6411),
+  ("PORTO ALEGRE", "GUARUJA", 6145),
+  ("PORTO ALEGRE", "LAGEADO", 5676),
+  ("PORTO ALEGRE", "CHACARA DAS PEDRAS", 5639),
+  ("PORTO ALEGRE", "CHAPEU DO SOL", 5547),
+  ("PORTO ALEGRE", "ESPIRITO SANTO", 4953),
+  ("PORTO ALEGRE", "SANTA CECILIA", 4640),
+  ("PORTO ALEGRE", "SERRARIA", 4385),
+  ("PORTO ALEGRE", "JARDIM EUROPA", 4372),
+  ("PORTO ALEGRE", "TRES FIGUEIRAS", 4016),
+  ("PORTO ALEGRE", "VILA ASSUNCAO", 3974),
+  ("PORTO ALEGRE", "JARDIM SAO PEDRO", 3320),
+  ("PORTO ALEGRE", "NAVEGANTES", 3315),
+  ("PORTO ALEGRE", "SANTA MARIA GORETTI", 3035),
+  ("PORTO ALEGRE", "BOA VISTA DO SUL", 2703),
+  ("PORTO ALEGRE", "AGRONOMIA", 2677),
+  ("PORTO ALEGRE", "JARDIM ISABEL", 2592),
+  ("PORTO ALEGRE", "EXTREMA", 2360),
+  ("PORTO ALEGRE", "JARDIM FLORESTA", 2228),
+  ("PORTO ALEGRE", "PRAIA DE BELAS", 1522),
+  ("PORTO ALEGRE", "SETIMO CEU", 1166),
+  ("PORTO ALEGRE", "VILA CONCEICAO", 969),
+  ("PORTO ALEGRE", "ANCHIETA", 791),
+  ("PORTO ALEGRE", "FARROUPILHA", 774),
+  ("PORTO ALEGRE", "SAO CAETANO", 733),
+  ("PORTO ALEGRE", "PEDRA REDONDA", 570),
+  # CANOAS
+  ("CANOAS", "MATHIAS VELHO", 43325),
+  ("CANOAS", "GUAJUVIRAS", 41282),
+  ("CANOAS", "HARMONIA", 34740),
+  ("CANOAS", "NITEROI", 32630),
+  ("CANOAS", "ESTANCIA VELHA", 30519),
+  ("CANOAS", "RIO BRANCO", 24578),
+  ("CANOAS", "IGARA", 20213),
+  ("CANOAS", "FATIMA", 19393),
+  ("CANOAS", "SAO JOSE", 16837),
+  ("CANOAS", "MATO GRANDE", 16377),
+  ("CANOAS", "OLARIA", 16264),
+  ("CANOAS", "CENTRO", 15698),
+  ("CANOAS", "MARECHAL RONDON", 15251),
+  ("CANOAS", "NOSSA SENHORA DAS GRACAS", 14968),
+  ("CANOAS", "SAO LUIS", 4407),
+  ("CANOAS", "BRIGADEIRA", 1143),
+  ("CANOAS", "INDUSTRIAL", 32),
+  # VIAMAO
+  ("VIAMAO", "SANTA ISABEL", 23997),
+  ("VIAMAO", "CECILIA", 21198),
+  ("VIAMAO", "AUGUSTA", 17673),
+  ("VIAMAO", "SANTO ONOFRE", 15526),
+  ("VIAMAO", "SAO LUCAS", 11590),
+  ("VIAMAO", "TARUMA", 11194),
+  ("VIAMAO", "SAO TOME", 11045),
+  ("VIAMAO", "ELSA", 9394),
+  ("VIAMAO", "CENTRO", 6954),
+  ("VIAMAO", "PASSO DO VIGARIO", 6904),
+  ("VIAMAO", "KRAHE", 6653),
+  ("VIAMAO", "FIUZA", 5713),
+  ("VIAMAO", "BRANQUINHA", 5645),
+  ("VIAMAO", "QUERENCIA", 5253),
+  ("VIAMAO", "MARTINICA", 4531),
+  ("VIAMAO", "VIAMOPOLIS", 3233),
+  ("VIAMAO", "COCAO", 3139),
+  ("VIAMAO", "ESTANCIA GRANDE", 144),
+  ("VIAMAO", "PARQUE SAINT'HILAIRE", 112),
+  # GUAIBA
+  ("GUAIBA", "SANTA RITA", 19504),
+  ("GUAIBA", "COLINA", 10662),
+  ("GUAIBA", "BOM FIM", 8394),
+  ("GUAIBA", "JARDIM IOLANDA", 6100),
+  ("GUAIBA", "JARDIM DOS LAGOS", 5752),
+  ("GUAIBA", "PASSO FUNDO", 5390),
+  ("GUAIBA", "CENTRO", 5320),
+  ("GUAIBA", "FLORIDA", 5041),
+  ("GUAIBA", "PEDRAS BRANCAS", 4878),
+  ("GUAIBA", "ERMO", 4243),
+  ("GUAIBA", "COLUMBIA CITY", 4211),
+  ("GUAIBA", "ALEGRIA", 3448),
+  ("GUAIBA", "CORONEL NASSUCA", 2716),
+  ("GUAIBA", "PARQUE 35", 2582),
+  ("GUAIBA", "ALVORADA", 1951),
+  ("GUAIBA", "ALTOS DA ALEGRIA", 469),
+  ("GUAIBA", "CHAVES BARCELLOS", 36),
+  # ESTEIO
+  ("ESTEIO", "CENTRO", 10064),
+  ("ESTEIO", "SAO SEBASTIAO", 8122),
+  ("ESTEIO", "PARQUE PRIMAVERA", 7687),
+  ("ESTEIO", "SAO JOSE", 6867),
+  ("ESTEIO", "SANTO INACIO", 6683),
+  ("ESTEIO", "NOVO ESTEIO", 6085),
+  ("ESTEIO", "PRIMAVERA", 5642),
+  ("ESTEIO", "TRES MARIAS", 5289),
+  ("ESTEIO", "OLIMPICA", 5102),
+  ("ESTEIO", "JARDIM PLANALTO", 4635),
+  ("ESTEIO", "LIBERDADE", 4221),
+  ("ESTEIO", "TAMANDARE", 4208),
+  ("ESTEIO", "TRES PORTOS", 1017),
+  # NOVO HAMBURGO
+  ("NOVO HAMBURGO", "CANUDOS", 56453),
+  ("NOVO HAMBURGO", "SANTO AFONSO", 21920),
+  ("NOVO HAMBURGO", "BOA SAUDE", 12773),
+  ("NOVO HAMBURGO", "RONDONIA", 11456),
+  ("NOVO HAMBURGO", "SAO JORGE", 9802),
+  ("NOVO HAMBURGO", "CENTRO", 8455),
+  ("NOVO HAMBURGO", "DIEHL", 8052),
+  ("NOVO HAMBURGO", "LOMBA GRANDE", 7716),
+  ("NOVO HAMBURGO", "IDEAL", 6763),
+  ("NOVO HAMBURGO", "LIBERDADE", 6553),
+  ("NOVO HAMBURGO", "PRIMAVERA", 6146),
+  ("NOVO HAMBURGO", "MAUA", 5937),
+  ("NOVO HAMBURGO", "SAO JOSE", 5821),
+  ("NOVO HAMBURGO", "VILA NOVA", 5564),
+  ("NOVO HAMBURGO", "ROSELANDIA", 5296),
+  ("NOVO HAMBURGO", "RINCAO", 5019),
+  ("NOVO HAMBURGO", "GUARANI", 4954),
+  ("NOVO HAMBURGO", "OPERARIO", 4554),
+  ("NOVO HAMBURGO", "PATRIA NOVA", 4272),
+  ("NOVO HAMBURGO", "RIO BRANCO", 4014),
+  ("NOVO HAMBURGO", "PETROPOLIS", 3592),
+  ("NOVO HAMBURGO", "INDUSTRIAL", 3441),
+  ("NOVO HAMBURGO", "VILA ROSA", 3027),
+  ("NOVO HAMBURGO", "OURO BRANCO", 2970),
+  ("NOVO HAMBURGO", "BOA VISTA", 2943),
+  ("NOVO HAMBURGO", "HAMBURGO VELHO", 2487),
+  ("NOVO HAMBURGO", "ALPES DO VALE", 2142),
+  # SAO LEOPOLDO
+  ("SAO LEOPOLDO", "FEITORIA", 33063),
+  ("SAO LEOPOLDO", "SANTOS DUMONT", 30142),
+  ("SAO LEOPOLDO", "ARROIO DA MANTEIGA", 22229),
+  ("SAO LEOPOLDO", "CAMPINA", 13409),
+  ("SAO LEOPOLDO", "SCHARLAU", 13146),
+  ("SAO LEOPOLDO", "VICENTINA", 11864),
+  ("SAO LEOPOLDO", "CENTRO", 11861),
+  ("SAO LEOPOLDO", "DUQUE DE CAXIAS", 11767),
+  ("SAO LEOPOLDO", "CAMPESTRE", 11186),
+  ("SAO LEOPOLDO", "SAO MIGUEL", 8563),
+  ("SAO LEOPOLDO", "SANTO ANDRE", 6723),
+  ("SAO LEOPOLDO", "SANTA TERESA", 5869),
+  ("SAO LEOPOLDO", "JARDIM AMERICA", 4741),
+  ("SAO LEOPOLDO", "RIO BRANCO", 4647),
+  ("SAO LEOPOLDO", "PINHEIRO", 3793),
+  ("SAO LEOPOLDO", "MORRO DO ESPELHO", 3657),
+  ("SAO LEOPOLDO", "RIO DOS SINOS", 3582),
+  ("SAO LEOPOLDO", "CRISTO REI", 3147),
+  ("SAO LEOPOLDO", "FAZENDA SAO BORJA", 2758),
+  ("SAO LEOPOLDO", "BOA VISTA", 2387),
+  ("SAO LEOPOLDO", "SAO JOSE", 2226),
+  ("SAO LEOPOLDO", "SAO JOAO BATISTA", 1633),
+  ("SAO LEOPOLDO", "PADRE REUS", 1474),
+  ("SAO LEOPOLDO", "FIAO", 1340),
+  # ELDORADO DO SUL
+  ("ELDORADO DO SUL", "CENTRO NOVO", 6197),
+  ("ELDORADO DO SUL", "SANS SOUCI", 4101),
+  ("ELDORADO DO SUL", "CIDADE VERDE", 3439),
+  ("ELDORADO DO SUL", "MEDIANEIRA", 2856),
+  ("ELDORADO DO SUL", "PARQUE ELDORADO 1", 2599),
+  ("ELDORADO DO SUL", "CHACARA", 2470),
+  ("ELDORADO DO SUL", "CENTRO", 2174),
+  ("ELDORADO DO SUL", "RESIDENCIAL ELDORADO", 1416),
+  ("ELDORADO DO SUL", "INDUSTRIAL", 1278),
+  ("ELDORADO DO SUL", "PICADA", 1255),
+  ("ELDORADO DO SUL", "LOTEAMENTO POPULAR", 1228),
+  ("ELDORADO DO SUL", "PARQUE ELDORADO 3", 1178),
+  ("ELDORADO DO SUL", "PROGRESSO", 1168),
+  ("ELDORADO DO SUL", "PARQUE ELDORADO 2", 1132),
+  ("ELDORADO DO SUL", "ITAI", 990),
+  ("ELDORADO DO SUL", "SOL NASCENTE", 783),
+  ("ELDORADO DO SUL", "VILA DA PAZ", 742),
+  ("ELDORADO DO SUL", "PARQUE DAS ACACIAS SUL", 367),
+  ("ELDORADO DO SUL", "BOM RETIRO", 231),
+  ("ELDORADO DO SUL", "PARQUE DAS ACACIAS NORTE", 155),
+  ("ELDORADO DO SUL", "PARQUE ELDORADO 4", 99),
+]
+
+# Dicionário normalizado: {cidade_norm: {bairro_norm: populacao}}
+POPULACAO_BAIRROS_RMPA: dict = {}
+for _cidade, _bairro, _pop in _POPULACAO_BAIRROS_RMPA_RAW:
+    _cn = normalizar(_cidade)
+    _bn = normalizar(_bairro)
+    POPULACAO_BAIRROS_RMPA.setdefault(_cn, {})[_bn] = _pop
+
+# Compatibilidade com código antigo
+POPULACAO_BAIRROS_POA: dict = POPULACAO_BAIRROS_RMPA.get("PORTO ALEGRE", {})
+
+
+def obter_risco_bairro_poa(cache_path: Path, headless: bool = True) -> dict:
+    """Retorna {cidade_norm: {bairro_norm: {ocorrencias, populacao, taxa_100k, risco}}}.
+
+    Agora cobre POA + Canoas + Viamão + Guaíba + Esteio + Novo Hamburgo +
+    São Leopoldo + Eldorado do Sul (todas cidades da RMPA com dados por bairro no IBGE).
+    Cidades sem dados por bairro (Alvorada, Cachoeirinha, Gravataí, Sapucaia)
+    continuam usando o nível de município.
+    O risco é calculado por tercis DENTRO de cada cidade, para ser comparável
+    entre bairros da mesma localidade."""
+    import json
+
+    if cache_path.exists():
+        try:
+            cache = json.loads(cache_path.read_text(encoding="utf-8"))
+            idade_dias = (datetime.now() - datetime.fromisoformat(cache["gerado_em"])).days
+            if idade_dias < CACHE_RISCO_DIAS:
+                log.info("Usando cache de criminalidade por bairro RMPA (%d dia(s) de idade).", idade_dias)
+                return cache["bairros"]
+        except Exception as e:
+            log.warning("Cache de risco por bairro inválido, recalculando: %s", e)
+
+    if not POPULACAO_BAIRROS_RMPA:
+        return {}
+
+    ocorrencias_por_chave = _baixar_ocorrencias_por_bairro_poa(headless=headless)
+    if not ocorrencias_por_chave:
+        return {}
+
+    # resultado: {cidade_norm: {bairro_norm: {...}}}
+    resultado: dict = {}
+    for cidade, bairros_pop in POPULACAO_BAIRROS_RMPA.items():
+        resultado[cidade] = {}
+        for bairro, populacao in bairros_pop.items():
+            ocorrencias = ocorrencias_por_chave.get((cidade, bairro), 0)
+            taxa = (ocorrencias / populacao) * 100_000 if populacao else 0
+            resultado[cidade][bairro] = {
+                "ocorrencias": ocorrencias,
+                "populacao": populacao,
+                "taxa_100k": round(taxa, 1),
+            }
+        # tercis calculados dentro da cidade (comparar bairros entre si)
+        taxas_cidade = [v["taxa_100k"] for v in resultado[cidade].values()]
+        for bairro in resultado[cidade]:
+            resultado[cidade][bairro]["risco"] = _classificar_risco(
+                resultado[cidade][bairro]["taxa_100k"], taxas_cidade
+            )
+        n_bairros = len(resultado[cidade])
+        n_com_dados = sum(1 for v in resultado[cidade].values() if v["ocorrencias"] > 0)
+        log.info("%s: %d/%d bairros com ocorrências registradas", cidade, n_com_dados, n_bairros)
+
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps({"gerado_em": datetime.now().isoformat(), "bairros": resultado}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        log.warning("Não consegui salvar cache de risco por bairro: %s", e)
+
+    return resultado
+
+
+def explorar_dados_abertos_ssp(headless: bool = True, tentativas: int = 3) -> list:
+    """Reconhecimento: abre https://www.ssp.rs.gov.br/dados-abertos com um Chrome
+    de verdade e lista os links de download (csv/xlsx/xls/zip) que a página tem.
+
+    Essa página tem os microdados desagregados (com campo de bairro, Lei
+    15.610/2021), mas robots.txt bloqueia fetch automatizado simples -- por
+    isso usamos o navegador real (mesma técnica do CSV da Caixa). Tem retry
+    porque o site já se mostrou instável (ERR_CONNECTION_RESET esporádico)."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as e:
+        raise RuntimeError("Playwright não instalado. Rode: pip install playwright && playwright install chromium") from e
+
+    url = "https://www.ssp.rs.gov.br/dados-abertos"
+    encontrados = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        contexto = browser.new_context(user_agent=HEADERS["User-Agent"], locale="pt-BR")
+        pagina = contexto.new_page()
+
+        for tentativa in range(1, tentativas + 1):
+            try:
+                pagina.goto(url, wait_until="networkidle", timeout=45000)
+                pagina.wait_for_timeout(2000)
+                break
+            except Exception as e:
+                log.warning("Tentativa %d/%d de abrir %s falhou: %s", tentativa, tentativas, url, e)
+                if tentativa == tentativas:
+                    browser.close()
+                    raise
+                pagina.wait_for_timeout(5000 * tentativa)  # espera crescente entre tentativas
+
+        links = pagina.eval_on_selector_all(
+            "a[href]",
+            "els => els.map(e => ({href: e.href, texto: e.textContent.trim()}))",
+        )
+        for link in links:
+            href = link["href"].lower()
+            if any(href.endswith(ext) for ext in (".csv", ".xlsx", ".xls", ".zip")):
+                encontrados.append(link)
+
+        browser.close()
+
+    log.info("Encontrados %d links de download em %s:", len(encontrados), url)
+    for link in encontrados:
+        log.info("  %s -> %s", link["texto"], link["href"])
+
+    return encontrados
+
+
+def processar_uf(
     uf: str,
     outdir: Path,
     cidades: list[str] | None = None,
     html_out: Path | None = None,
     metodo: str = "navegador",
     headless: bool = True,
+    com_risco: bool = True,
 ):
     if metodo == "navegador":
         conteudo = baixar_csv_via_navegador(uf, headless=headless)
@@ -694,8 +1483,20 @@ def processar_uf(
     novos, removidos = comparar(linhas, anteriores, id_col) if linhas else ([], [])
     log.info("%s: %d novos, %d removidos (total atual: %d)", uf, len(novos), len(removidos), len(linhas))
 
+    risco_por_municipio = {}
+    risco_bairro_poa = {}
+    if com_risco:
+        try:
+            risco_por_municipio = obter_risco_por_municipio(outdir / "cache_criminalidade.json")
+        except Exception as e:
+            log.warning("Falha ao obter índice de risco por município, seguindo sem essa coluna: %s", e)
+        try:
+            risco_bairro_poa = obter_risco_bairro_poa(outdir / "cache_criminalidade_bairro_poa.json", headless=headless)
+        except Exception as e:
+            log.warning("Falha ao obter índice de risco por bairro (POA): %s", e)
+
     if html_out:
-        gerar_html(uf, data_atual, novos, removidos, linhas, cidades, html_out)
+        gerar_html(uf, data_atual, novos, removidos, linhas, cidades, html_out, risco_por_municipio, risco_bairro_poa)
 
 
 def main():
@@ -731,7 +1532,22 @@ def main():
         action="store_true",
         help="Mostra a janela do Chrome durante o download (útil se o modo headless continuar bloqueado)",
     )
+    parser.add_argument(
+        "--sem-risco",
+        action="store_true",
+        help="Desativa a coluna de índice de risco (criminalidade por cidade, via SSP-RS)",
+    )
+    parser.add_argument(
+        "--explorar-bairro-poa",
+        action="store_true",
+        help="Não roda o scraper -- só abre a página de dados abertos da SSP-RS e lista "
+        "os links de download disponíveis (reconhecimento pro índice de risco por bairro)",
+    )
     args = parser.parse_args()
+
+    if args.explorar_bairro_poa:
+        explorar_dados_abertos_ssp(headless=not args.mostrar_navegador)
+        return
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)  # garante que a pasta existe mesmo se tudo falhar
@@ -748,6 +1564,7 @@ def main():
                 html_out=html_out,
                 metodo=args.metodo,
                 headless=not args.mostrar_navegador,
+                com_risco=not args.sem_risco,
             )
             sucesso += 1
         except requests.RequestException as e:
