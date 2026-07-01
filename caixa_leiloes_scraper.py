@@ -75,6 +75,13 @@ def baixar_csv(uf: str) -> bytes:
     url = BASE_URL.format(uf=uf.upper())
     log.info("Baixando lista de %s: %s", uf, url)
     resp = requests.get(url, headers=HEADERS, timeout=60)
+    log.info(
+        "Resposta: status=%s content-type=%s content-length=%s bytes-recebidos=%d",
+        resp.status_code,
+        resp.headers.get("Content-Type"),
+        resp.headers.get("Content-Length"),
+        len(resp.content),
+    )
     resp.raise_for_status()
     return resp.content
 
@@ -103,6 +110,7 @@ def parsear_csv(conteudo: bytes) -> list[dict]:
     if idx_header is None:
         log.warning("Não encontrei a linha de cabeçalho esperada (com 'Cidade' e 'UF'). "
                      "O formato do arquivo pode ter mudado. Tentando a partir da linha 0.")
+        log.warning("Amostra do conteúdo bruto recebido (primeiros 1000 chars): %r", texto[:1000])
         idx_header = 0
 
     texto_util = "\n".join(l for l in linhas_texto[idx_header:] if l.strip())
@@ -311,23 +319,26 @@ def processar_uf(uf: str, outdir: Path, cidades: list[str] | None = None, html_o
     linhas = parsear_csv(conteudo)
     if not linhas:
         log.warning("Nenhuma linha encontrada para %s (site pode ter mudado o formato).", uf)
+        # ainda assim gera um HTML vazio, pra não quebrar o commit do workflow
+        if html_out:
+            gerar_html(uf, datetime.now().strftime("%Y-%m-%d"), [], [], [], cidades, html_out)
         return
 
     if cidades:
-        linhas = filtrar_por_cidade(linhas, cidades)
-        if not linhas:
+        linhas_filtradas = filtrar_por_cidade(linhas, cidades)
+        if not linhas_filtradas:
             log.warning(
                 "Filtro de cidade não retornou nada -- confira se os nomes em "
                 "CIDADES_RMPA batem com o texto real do CSV (rode sem --cidades pra conferir)."
             )
-            return
+        linhas = linhas_filtradas
 
-    id_col = achar_coluna_id(linhas)
+    id_col = achar_coluna_id(linhas) if linhas else ""
     data_atual = datetime.now().strftime("%Y-%m-%d")
     anteriores = carregar_snapshot_anterior(uf, outdir, data_atual)
     salvar_snapshot(linhas, uf, outdir)
 
-    novos, removidos = comparar(linhas, anteriores, id_col)
+    novos, removidos = comparar(linhas, anteriores, id_col) if linhas else ([], [])
     log.info("%s: %d novos, %d removidos (total atual: %d)", uf, len(novos), len(removidos), len(linhas))
 
     if html_out:
