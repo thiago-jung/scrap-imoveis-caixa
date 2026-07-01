@@ -80,32 +80,66 @@ def baixar_csv(uf: str) -> bytes:
 
 
 def parsear_csv(conteudo: bytes) -> list[dict]:
-    # Sites do governo BR costumam usar latin-1 e ';' como separador.
+    """Faz o parsing do CSV da Caixa.
+
+    O arquivo real vem assim (confirmado em 2026-07):
+        Linha 1: "Lista de Imóveis da Caixa;;Data de geração:;DD/MM/AAAA;;;;;;;"  <- lixo, ignorar
+        Linha 2: " Nº do imóvel;UF;Cidade;Bairro;Endereço;Preço;..."              <- cabeçalho real
+        Linha 3: em branco
+        Linha 4+: dados, separados por ';', campos com espaços sobrando
+
+    Por isso não dá pra usar csv.Sniffer nem assumir que a primeira linha é o
+    cabeçalho -- é preciso achar a linha que contém "Cidade" e "UF".
+    """
     texto = conteudo.decode("latin-1", errors="replace")
-    sniffer = csv.Sniffer()
-    try:
-        dialect = sniffer.sniff(texto[:2000], delimiters=";,")
-    except csv.Error:
-        dialect = csv.excel
-        dialect.delimiter = ";"
-    leitor = csv.DictReader(io.StringIO(texto), dialect=dialect)
-    linhas = [row for row in leitor if any(v.strip() for v in row.values() if v)]
+    linhas_texto = texto.splitlines()
+
+    idx_header = None
+    for i, linha in enumerate(linhas_texto):
+        if "Cidade" in linha and "UF" in linha:
+            idx_header = i
+            break
+
+    if idx_header is None:
+        log.warning("Não encontrei a linha de cabeçalho esperada (com 'Cidade' e 'UF'). "
+                     "O formato do arquivo pode ter mudado. Tentando a partir da linha 0.")
+        idx_header = 0
+
+    texto_util = "\n".join(l for l in linhas_texto[idx_header:] if l.strip())
+    leitor = csv.DictReader(io.StringIO(texto_util), delimiter=";")
+
+    linhas = []
+    for row in leitor:
+        # limpa espaços em branco de chaves e valores (o CSV da Caixa vem cheio deles)
+        row_limpo = {(k or "").strip(): (v or "").strip() for k, v in row.items() if k}
+        if any(row_limpo.values()):
+            linhas.append(row_limpo)
+
     log.info("Parseadas %d linhas", len(linhas))
     return linhas
 
 
 def filtrar_por_cidade(linhas: list[dict], cidades: list[str]) -> list[dict]:
-    """Mantém só as linhas cujo texto (endereço/cidade/etc.) contém alguma das cidades.
+    """Mantém só as linhas cuja cidade bate com alguma da lista.
 
-    Não depende de saber o nome exato da coluna de cidade: concatena a linha
-    inteira e procura a substring, o que é robusto a variações de cabeçalho.
+    Usa a coluna 'Cidade' quando existe (caso normal do CSV da Caixa). Se por
+    algum motivo essa coluna não existir, cai pro modo antigo (procura a
+    cidade em qualquer campo da linha).
     """
     cidades_norm = [normalizar(c) for c in cidades]
+    tem_coluna_cidade = linhas and "Cidade" in linhas[0]
+
     filtradas = []
     for row in linhas:
-        texto_linha = normalizar(" | ".join(str(v) for v in row.values() if v))
-        if any(cidade in texto_linha for cidade in cidades_norm):
+        if tem_coluna_cidade:
+            alvo = normalizar(row.get("Cidade", ""))
+            bate = any(alvo == cidade or cidade in alvo for cidade in cidades_norm)
+        else:
+            texto_linha = normalizar(" | ".join(str(v) for v in row.values() if v))
+            bate = any(cidade in texto_linha for cidade in cidades_norm)
+        if bate:
             filtradas.append(row)
+
     log.info("Filtro de cidade: %d de %d linhas mantidas", len(filtradas), len(linhas))
     return filtradas
 
@@ -319,13 +353,21 @@ def main():
     args = parser.parse_args()
 
     outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)  # garante que a pasta existe mesmo se tudo falhar
     cidades = args.cidades if args.cidades else None
     html_out = Path(args.html_out) if args.html_out else None
+
+    sucesso = 0
     for uf in args.ufs:
         try:
             processar_uf(uf, outdir, cidades=cidades, html_out=html_out)
+            sucesso += 1
         except requests.RequestException as e:
-            log.error("Erro ao processar %s: %s", uf, e)
+            log.error("Erro ao baixar/processar %s: %s", uf, e)
+
+    if sucesso == 0:
+        log.error("Nenhuma UF processada com sucesso -- abortando com erro.")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
