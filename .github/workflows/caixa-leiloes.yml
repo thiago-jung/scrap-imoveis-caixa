@@ -33,6 +33,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p data
           git add data/ index.html
           git diff --cached --quiet && echo "Sem mudanças" || git commit -m "snapshot leiloes RS $(date +%F)"
           git push
