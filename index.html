@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leilões Caixa - RS - 2026-07-01</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --border: #262a35;
+    --text: #e6e8ec; --muted: #9099a8; --accent: #4f8cff; --novo: #1f3a2a; --novo-border: #2f6b45;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitulo { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; min-width: 140px;
+  }
+  .stat .num { font-size: 24px; font-weight: 600; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  section { margin-bottom: 36px; }
+  h2 { font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .tabela-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel); position: sticky; top: 0; color: var(--muted); font-weight: 600; }
+  tr:hover td { background: #1c2029; }
+  tr.novo td { background: var(--novo); }
+  tr.novo:hover td { background: var(--novo-border); }
+  a { color: var(--accent); }
+  .vazio { color: var(--muted); font-style: italic; }
+  details summary { cursor: pointer; color: var(--accent); margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Leilões Caixa — RS</h1>
+  <div class="subtitulo">Atualizado em 2026-07-01 · Filtro de cidade: PORTO ALEGRE, CANOAS, ALVORADA, VIAMAO, CACHOEIRINHA, GRAVATAI, GUAIBA, ESTEIO, SAPUCAIA DO SUL, NOVO HAMBURGO, SAO LEOPOLDO, ELDORADO DO SUL</div>
+
+  <div class="stats">
+    <div class="stat"><div class="num">0</div><div class="label">Total ativos hoje</div></div>
+    <div class="stat"><div class="num">0</div><div class="label">Novos hoje</div></div>
+    <div class="stat"><div class="num">0</div><div class="label">Saíram da lista</div></div>
+  </div>
+
+  <section>
+    <h2>Novos hoje (0)</h2>
+    <p class='vazio'>Nenhum imóvel.</p>
+  </section>
+
+  <section>
+    <h2>Saíram da lista desde ontem (0)</h2>
+    <p class='vazio'>Nenhum imóvel.</p>
+  </section>
+
+  <section>
+    <details>
+      <summary>Ver todos os 0 imóveis ativos filtrados</summary>
+      <p class='vazio'>Nenhum imóvel.</p>
+    </details>
+  </section>
+</div>
+</body>
+</html>
