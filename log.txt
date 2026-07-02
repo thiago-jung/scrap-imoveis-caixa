@@ -1,0 +1,115 @@
+2026-07-01 21:17:22,608 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-01 21:17:23,847 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-01 21:17:31,815 INFO Desafio passado na tentativa 1 (bytes: 239295)
+2026-07-01 21:17:32,323 INFO Parseadas 692 linhas
+2026-07-01 21:17:32,328 INFO Filtro de cidade: 391 de 692 linhas mantidas
+2026-07-01 21:17:32,346 INFO Snapshot salvo em data\RS_2026-07-01.csv
+2026-07-01 21:17:32,347 INFO RS: 391 novos, 0 removidos (total atual: 391)
+2026-07-01 21:17:32,348 INFO Usando cache de criminalidade (0 dia(s) de idade).
+2026-07-01 21:17:32,349 INFO Usando cache de criminalidade por bairro RMPA (0 dia(s) de idade).
+2026-07-01 21:17:32,375 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   rodar_scraper.bat
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	log.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nenhuma alteracao no HTML ou CSV detectada. Commit ignorado. 
+Processo concluido com sucesso! 
+2026-07-01 21:19:33,898 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-01 21:19:34,812 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-01 21:19:42,131 INFO Desafio passado na tentativa 1 (bytes: 239295)
+2026-07-01 21:19:42,295 INFO Parseadas 692 linhas
+2026-07-01 21:19:42,298 INFO Filtro de cidade: 391 de 692 linhas mantidas
+2026-07-01 21:19:42,306 INFO Snapshot salvo em data\RS_2026-07-01.csv
+2026-07-01 21:19:42,306 INFO RS: 391 novos, 0 removidos (total atual: 391)
+2026-07-01 21:19:42,307 INFO Usando cache de criminalidade (0 dia(s) de idade).
+2026-07-01 21:19:42,308 INFO Usando cache de criminalidade por bairro RMPA (0 dia(s) de idade).
+2026-07-01 21:19:42,317 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   rodar_scraper.bat
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	log.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nenhuma alteracao no HTML ou CSV detectada. Commit ignorado. 
+Processo concluido com sucesso! 
+2026-07-02 09:22:46,701 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 09:22:52,661 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 09:23:03,011 INFO Desafio passado na tentativa 1 (bytes: 240861)
+2026-07-02 09:23:03,166 INFO Parseadas 698 linhas
+2026-07-02 09:23:03,169 INFO Filtro de cidade: 396 de 698 linhas mantidas
+2026-07-02 09:23:03,172 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 09:23:03,207 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 09:23:03,208 INFO RS: 5 novos, 0 removidos (total atual: 396)
+2026-07-02 09:23:03,221 INFO Usando cache de criminalidade (0 dia(s) de idade).
+2026-07-02 09:23:03,240 INFO Usando cache de criminalidade por bairro RMPA (0 dia(s) de idade).
+2026-07-02 09:23:03,255 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 2fc7a39] Atualizacao automatica: 02/07/2026
+ 2 files changed, 404 insertions(+), 7 deletions(-)
+ create mode 100644 data/RS_2026-07-02.csv
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   c4e3a13..2fc7a39  main -> main
+Processo concluido com sucesso! 
+2026-07-02 09:29:39,014 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 09:29:39,577 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 09:30:10,889 INFO Desafio passado na tentativa 1 (bytes: 240861)
+2026-07-02 09:30:11,019 INFO Parseadas 698 linhas
+2026-07-02 09:30:11,023 INFO Filtro de cidade: 396 de 698 linhas mantidas
+2026-07-02 09:30:11,024 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 09:30:11,039 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 09:30:11,039 INFO RS: 5 novos, 0 removidos (total atual: 396)
+2026-07-02 09:30:11,040 INFO Usando cache de criminalidade (0 dia(s) de idade).
+2026-07-02 09:30:11,040 INFO Usando cache de criminalidade por bairro RMPA (0 dia(s) de idade).
+2026-07-02 09:30:11,046 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   rodar_scraper.bat
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	log.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nenhuma alteracao no HTML ou CSV detectada. Commit ignorado. 
+Processo concluido com sucesso! 
+ 
+========================================= 
+Processo do Python concluido. 
+[main 2122241] Atualizacao automatica: 02/07/2026
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   2fc7a39..2122241  main -> main
+Processo concluido com sucesso! 
