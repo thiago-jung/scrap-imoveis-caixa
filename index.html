@@ -79,7 +79,8 @@
   tbody tr.novo:hover { background: #223829; }
   td.endereco { white-space: normal; max-width: 260px; }
   td.endereco .bairro { font-weight: 600; }
-  td.endereco .rua { color: var(--muted); font-size: 12px; display: block; }
+  td.endereco .rua { color: var(--muted); font-size: 12px; display: block; text-decoration: none; }
+  td.endereco a.rua:hover { text-decoration: underline; color: var(--gold); }
   .badge-novo {
     background: var(--good); color: #06170e; font-size: 10px; font-weight: 700;
     padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 6px;
@@ -272,7 +273,7 @@ function renderizar(lista) {
     <tr class="${r.novo ? 'novo' : ''}">
       <td class="endereco">
         <span class="bairro">${r.bairro || r.cidade}${r.novo ? '<span class="badge-novo">novo</span>' : ''}</span>
-        <span class="rua">${r.endereco}</span>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.endereco + ', ' + r.cidade)}" target="_blank" class="rua" title="Ver no Google Maps">${r.endereco}</a>
       </td>
       <td class="num">${fmtBRL(r.preco)}</td>
       <td class="num">${fmtBRL(r.avaliacao)}</td>
