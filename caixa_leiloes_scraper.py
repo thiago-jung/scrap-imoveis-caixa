@@ -30,6 +30,8 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
+from scrapers.mega_leiloes import MegaLeiloesScraper
+from scrapers.leiloes_judiciais import LeiloesJudiciaisScraper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -504,6 +506,17 @@ def _parar_desconto(texto: str) -> float:
         return 0.0
 
 
+def extrair_tipo(descricao: str) -> str:
+    d = descricao.lower()
+    if 'apartamento' in d or 'apto' in d: return 'Apartamento'
+    if 'casa' in d or 'sobrado' in d: return 'Casa'
+    if 'comercial' in d or 'sala' in d or 'galpão' in d or 'galpao' in d or 'loja' in d or 'prédio' in d or 'predio' in d or 'pavilhão' in d: return 'Comercial'
+    if 'rural' in d or 'fazenda' in d or 'sítio' in d or 'sitio' in d or 'chácara' in d: return 'Rural'
+    if 'terreno' in d or 'lote' in d or 'gleba' in d: return 'Terreno'
+    if 'box' in d or 'vaga' in d or 'garagem' in d: return 'Box/Garagem'
+    return 'Outro'
+
+
 def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str, risco_por_municipio: dict, risco_bairro_poa: dict | None = None) -> dict:
     preco = _parar_valor_brl(row.get("Preço", ""))
     avaliacao = _parar_valor_brl(row.get("Valor de avaliação", ""))
@@ -518,21 +531,31 @@ def _montar_registro_js(row: dict, ids_novos: set[str], id_col: str, risco_por_m
             info_risco = bairros_cidade.get(bairro_norm)
     if info_risco is None:
         info_risco = risco_por_municipio.get(cidade_norm, {})
+    descricao = row.get("Descrição", "")
+    import re
+    area_match = re.search(r'([\d\.]+)\s*de área privativa', descricao)
+    area_privativa = float(area_match.group(1)) if area_match else 0.0
+    preco_m2 = preco / area_privativa if area_privativa > 0 else 0.0
+
     return {
         "id": row.get(id_col, ""),
-        "cidade": cidade,
-        "bairro": row.get("Bairro", "").title(),
+        "cidade": cidade_norm.title(),
+        "bairro": bairro_norm.title(),
+        "tipo": extrair_tipo(descricao),
         "endereco": row.get("Endereço", ""),
         "preco": preco,
         "avaliacao": avaliacao,
         "desconto": desconto,
         "financiamento": row.get("Financiamento", ""),
         "modalidade": row.get("Modalidade de venda", ""),
-        "descricao": row.get("Descrição", ""),
+        "descricao": descricao,
         "link": row.get("Link de acesso", ""),
+        "origem": row.get("Origem", "Caixa"),
         "novo": row.get(id_col, "") in ids_novos,
         "risco": info_risco.get("risco", "desconhecido"),
         "taxa_criminalidade": info_risco.get("taxa_100k"),
+        "area_privativa": area_privativa,
+        "preco_m2": preco_m2,
     }
 
 
@@ -546,18 +569,67 @@ def gerar_html(
     caminho_saida: Path,
     risco_por_municipio: dict | None = None,
     risco_bairro_poa: dict | None = None,
+    historico_precos: dict | None = None,
 ):
     import json
+    import re
 
     risco_por_municipio = risco_por_municipio or {}
+    historico_precos = historico_precos or {}
     id_col = achar_coluna_id(todas) if todas else ""
     ids_novos = {row.get(id_col) for row in novos} if todas else set()
-    registros = [_montar_registro_js(row, ids_novos, id_col, risco_por_municipio, risco_bairro_poa) for row in todas]
+    
+    ruas_contagem = {}
+    rua_por_imovel = {}
+    for row in todas:
+        imovel_id = row.get(id_col, "")
+        endereco = row.get("Endereço", "")
+        cidade = row.get("Cidade", "").title()
+        rua = re.split(r',| - | N\.| n\.| S/N| s/n| Nº| nº', endereco)[0].strip().upper()
+        if len(rua) < 3: rua = endereco.strip().upper()
+        chave = f"{rua} | {cidade}"
+        rua_por_imovel[imovel_id] = rua
+        ruas_contagem[chave] = ruas_contagem.get(chave, 0) + 1
+        
+    registros = []
+    for row in todas:
+        imovel_id = row.get(id_col, "")
+        reg = _montar_registro_js(row, ids_novos, id_col, risco_por_municipio, risco_bairro_poa)
+        
+        hist = historico_precos.get(imovel_id)
+        if hist and len(hist.get("precos", [])) > 1:
+            primeiro_preco = hist["precos"][0]
+            ultimo_preco = hist["precos"][-1]
+            if ultimo_preco < primeiro_preco - 0.01:
+                reg["queda_preco"] = primeiro_preco - ultimo_preco
+                
+        if hist and len(hist.get("datas", [])) > 0:
+            from datetime import datetime
+            try:
+                d_pri = datetime.strptime(hist["datas"][0], "%Y-%m-%d")
+                d_hoje = datetime.strptime(data_atual, "%Y-%m-%d")
+                reg["idade_dias"] = (d_hoje - d_pri).days
+            except:
+                reg["idade_dias"] = 0
+        else:
+            reg["idade_dias"] = 0
+                
+        cidade = row.get("Cidade", "").title()
+        rua = rua_por_imovel.get(imovel_id, "")
+        chave = f"{rua} | {cidade}"
+        cont = ruas_contagem.get(chave, 1)
+        if cont > 1:
+            reg["contagem_rua"] = cont
+            reg["nome_rua"] = rua
+            
+        registros.append(reg)
+
     registros.sort(key=lambda r: r["desconto"], reverse=True)
 
     bairros = sorted({r["bairro"] for r in registros if r["bairro"]})
     modalidades = sorted({r["modalidade"] for r in registros if r["modalidade"]})
     cidades_disp = sorted({r["cidade"] for r in registros if r["cidade"]})
+    tipos = sorted({r["tipo"] for r in registros if r.get("tipo")})
     tem_dados_risco = any(r["risco"] != "desconhecido" for r in registros)
 
     desconto_medio = sum(r["desconto"] for r in registros) / len(registros) if registros else 0
@@ -569,6 +641,7 @@ def gerar_html(
     opcoes_bairro = "".join(f'<option value="{b}">{b}</option>' for b in bairros)
     opcoes_modalidade = "".join(f'<option value="{m}">{m}</option>' for m in modalidades)
     opcoes_cidade = "".join(f'<option value="{c}">{c}</option>' for c in cidades_disp)
+    opcoes_tipo = "".join(f'<option value="{t}">{t}</option>' for t in tipos)
 
     removidos_html = ""
     if removidos:
@@ -661,14 +734,23 @@ def gerar_html(
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
     padding: 12px; margin-bottom: 16px; position: sticky; top: 12px; z-index: 5;
   }}
-  .toolbar input[type="text"], .toolbar select {{
+  .toolbar input[type="text"], .toolbar input[type="number"], .toolbar select {{
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: inherit;
   }}
-  .toolbar input[type="text"] {{ flex: 1 1 220px; min-width: 160px; }}
-  .toolbar select {{ min-width: 130px; }}
+  .busca-wrapper {{ flex: 1 1 220px; min-width: 160px; position: relative; display: flex; align-items: center; }}
+  .toolbar input[type="text"] {{ flex: 1; width: 100%; padding-right: 30px; }}
+  #limpar-busca {{
+    position: absolute; right: 8px; background: transparent; border: none;
+    color: var(--muted); cursor: pointer; font-size: 18px; font-weight: bold;
+    display: none; padding: 0 4px; line-height: 1;
+  }}
+  #limpar-busca:hover {{ color: var(--text); }}
+  .toolbar input[type="number"] {{ width: 110px; }}
+  .toolbar select {{ width: 140px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }}
   .toolbar label {{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: flex; flex-direction: column; gap: 4px; }}
   .toolbar .desconto-min {{ display: flex; align-items: center; gap: 8px; }}
+  #desconto-min-valor {{ display: inline-block; width: 32px; text-align: right; }}
   .toolbar input[type="range"] {{ accent-color: var(--gold); width: 110px; }}
   .contagem {{ margin-left: auto; color: var(--muted); font-size: 12px; }}
   .contagem b {{ color: var(--text); }}
@@ -689,10 +771,24 @@ def gerar_html(
   tbody tr.novo:hover {{ background: #223829; }}
   td.endereco {{ white-space: normal; max-width: 260px; }}
   td.endereco .bairro {{ font-weight: 600; }}
-  td.endereco .rua {{ color: var(--muted); font-size: 12px; display: block; }}
+  td.endereco .rua {{ color: var(--muted); font-size: 12px; display: block; text-decoration: none; }}
+  td.endereco a.rua:hover {{ text-decoration: underline; color: var(--gold); }}
   .badge-novo {{
     background: var(--good); color: #06170e; font-size: 10px; font-weight: 700;
     padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 6px;
+  }}
+  .badge-rua {{
+    display: inline-block; margin-top: 4px; padding: 2px 6px;
+    background: #2a3a5a; color: #a4c2f4; font-size: 10px; font-weight: 600;
+    border-radius: 4px; cursor: pointer; border: 1px solid #3b507a;
+  }}
+  .badge-rua:hover {{ background: #3b507a; }}
+  .badge-idade {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }}
+  .idade-novo {{ background: var(--good); color: #06170e; }}
+  .idade-encalhado {{ background: #5c1818; color: #f4a4a4; }}
+  .idade-morno {{ background: var(--panel-2); color: var(--muted); }}
+  .queda-preco {{
+    color: var(--good); font-size: 11px; font-weight: 600; margin-top: 2px;
   }}
   .desconto-cel {{ display: flex; flex-direction: column; gap: 4px; min-width: 90px; }}
   .desconto-num {{ font-weight: 600; }}
@@ -750,12 +846,18 @@ def gerar_html(
   </div>
 
   <div class="toolbar">
-    <input type="text" id="busca" placeholder="Buscar por endereço, bairro...">
+    <div class="busca-wrapper">
+      <input type="text" id="busca" placeholder="Buscar por endereço, bairro...">
+      <button id="limpar-busca" title="Limpar busca">&times;</button>
+    </div>
     <label>Cidade
       <select id="filtro-cidade"><option value="">Todas</option>{opcoes_cidade}</select>
     </label>
     <label>Bairro
       <select id="filtro-bairro"><option value="">Todos</option>{opcoes_bairro}</select>
+    </label>
+    <label>Tipo
+      <select id="filtro-tipo"><option value="">Todos</option>{opcoes_tipo}</select>
     </label>
     <label>Modalidade
       <select id="filtro-modalidade"><option value="">Todas</option>{opcoes_modalidade}</select>
@@ -763,6 +865,12 @@ def gerar_html(
     <label>Só novos hoje
       <select id="filtro-novos"><option value="">Todos</option><option value="1">Sim</option></select>
     </label>{filtro_risco_html}
+    <label>Preço Mín. (R$)
+      <input type="number" id="preco-min" min="0" step="10000" placeholder="0">
+    </label>
+    <label>Preço Máx. (R$)
+      <input type="number" id="preco-max" min="0" step="10000" placeholder="Máx">
+    </label>
     <div class="desconto-min">
       <label>Desconto mín. <span id="desconto-min-valor">0%</span>
         <input type="range" id="desconto-min" min="0" max="90" value="0" step="5">
@@ -780,6 +888,7 @@ def gerar_html(
           <th data-col="bairro">Local</th>
           <th data-col="preco" class="num">Preço</th>
           <th data-col="avaliacao" class="num">Avaliação</th>
+          <th data-col="preco_m2" class="num">R$/m²</th>
           <th data-col="desconto" class="ativo">Desconto</th>
           <th data-col="risco">Risco</th>
           <th data-col="modalidade">Modalidade</th>
@@ -811,25 +920,68 @@ let ordenarPor = 'desconto';
 let ordemAsc = false;
 
 function aplicarFiltros() {{
-  const busca = document.getElementById('busca').value.trim().toLowerCase();
-  const cidade = document.getElementById('filtro-cidade').value;
-  const bairro = document.getElementById('filtro-bairro').value;
-  const modalidade = document.getElementById('filtro-modalidade').value;
-  const soNovos = document.getElementById('filtro-novos').value;
-  const descMin = parseInt(document.getElementById('desconto-min').value, 10);
-  const elFiltroRisco = document.getElementById('filtro-risco');
-  const risco = elFiltroRisco ? elFiltroRisco.value : '';
+  const inputBuscaEl = document.getElementById('busca');
+  const busca = inputBuscaEl.value.trim().toLowerCase();
+  const btnLimpar = document.getElementById('limpar-busca');
+  if (btnLimpar) {{
+    btnLimpar.style.display = inputBuscaEl.value ? 'block' : 'none';
+  }}
+  
+  const f = {{
+    busca: busca,
+    cidade: document.getElementById('filtro-cidade').value,
+    bairro: document.getElementById('filtro-bairro').value,
+    tipo: document.getElementById('filtro-tipo') ? document.getElementById('filtro-tipo').value : '',
+    modalidade: document.getElementById('filtro-modalidade').value,
+    soNovos: document.getElementById('filtro-novos').value,
+    risco: document.getElementById('filtro-risco') ? document.getElementById('filtro-risco').value : '',
+    descMin: parseInt(document.getElementById('desconto-min').value, 10) || 0,
+    precoMin: parseFloat(document.getElementById('preco-min').value) || 0,
+    precoMax: document.getElementById('preco-max').value ? parseFloat(document.getElementById('preco-max').value) : Infinity
+  }};
 
-  let filtrados = DADOS.filter(r => {{
-    if (busca && !(r.endereco.toLowerCase().includes(busca) || r.bairro.toLowerCase().includes(busca))) return false;
-    if (cidade && r.cidade !== cidade) return false;
-    if (bairro && r.bairro !== bairro) return false;
-    if (modalidade && r.modalidade !== modalidade) return false;
-    if (soNovos === '1' && !r.novo) return false;
-    if (risco && r.risco !== risco) return false;
-    if (r.desconto < descMin) return false;
+  const isMatch = (r, exclude) => {{
+    if (exclude !== 'busca' && f.busca && !(r.endereco.toLowerCase().includes(f.busca) || r.bairro.toLowerCase().includes(f.busca))) return false;
+    if (exclude !== 'cidade' && f.cidade && r.cidade !== f.cidade) return false;
+    if (exclude !== 'bairro' && f.bairro && r.bairro !== f.bairro) return false;
+    if (exclude !== 'tipo' && f.tipo && r.tipo !== f.tipo) return false;
+    if (exclude !== 'modalidade' && f.modalidade && r.modalidade !== f.modalidade) return false;
+    if (exclude !== 'soNovos' && f.soNovos === '1' && !r.novo) return false;
+    if (exclude !== 'risco' && f.risco && r.risco !== f.risco) return false;
+    if (r.desconto < f.descMin) return false;
+    if (r.preco < f.precoMin || r.preco > f.precoMax) return false;
     return true;
-  }});
+  }};
+
+  const rebuildSelect = (id, prop) => {{
+    const el = document.getElementById(id);
+    if (!el) return;
+    const currentVal = el.value;
+    const options = new Set();
+    DADOS.forEach(r => {{
+      if (isMatch(r, prop) && r[prop]) options.add(r[prop]);
+    }});
+    const sorted = [...options].sort();
+    let html = '<option value="">' + (id === 'filtro-cidade' ? 'Todas' : 'Todos') + '</option>';
+    sorted.forEach(val => {{
+      html += `<option value="${{val}}">${{val}}</option>`;
+    }});
+    el.innerHTML = html;
+    if (sorted.includes(currentVal)) {{
+      el.value = currentVal;
+    }} else {{
+      el.value = '';
+      f[prop] = '';
+    }}
+  }};
+
+  rebuildSelect('filtro-cidade', 'cidade');
+  rebuildSelect('filtro-bairro', 'bairro');
+  rebuildSelect('filtro-tipo', 'tipo');
+  rebuildSelect('filtro-modalidade', 'modalidade');
+  rebuildSelect('filtro-risco', 'risco');
+
+  let filtrados = DADOS.filter(r => isMatch(r, null));
 
   filtrados.sort((a, b) => {{
     let va = a[ordenarPor], vb = b[ordenarPor];
@@ -862,11 +1014,20 @@ function renderizar(lista) {{
   tbody.innerHTML = lista.map(r => `
     <tr class="${{r.novo ? 'novo' : ''}}">
       <td class="endereco">
-        <span class="bairro">${{r.bairro || r.cidade}}${{r.novo ? '<span class="badge-novo">novo</span>' : ''}}</span>
-        <span class="rua">${{r.endereco}}</span>
+        <span class="bairro">
+          <span class="badge-origem" style="background: ${{r.origem === 'Caixa' ? '#005ca9' : (r.origem === 'Mega Leilões' ? '#b22222' : '#2e8b57')}}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 6px;">${{r.origem}}</span>
+          ${{r.bairro || r.cidade}}
+          ${{r.idade_dias !== undefined && r.idade_dias <= 3 ? '<span class="badge-idade idade-novo">🔥 NOVO</span>' : (r.idade_dias >= 120 ? `<span class="badge-idade idade-encalhado">⏳ ${{r.idade_dias}} DIAS</span>` : `<span class="badge-idade idade-morno">⏳ ${{r.idade_dias}} DIAS</span>`)}}
+        </span>
+        <a href="https://www.google.com/maps/search/?api=1&query=${{encodeURIComponent(r.endereco + ', ' + r.cidade)}}" target="_blank" class="rua" title="Ver no Google Maps">${{r.endereco}}</a>
+        ${{r.contagem_rua ? `<span class="badge-rua" onclick="document.getElementById('busca').value='${{r.nome_rua}}'; aplicarFiltros()" title="Filtrar por esta rua">📍 ${{r.contagem_rua}} na mesma rua</span>` : ''}}
       </td>
-      <td class="num">${{fmtBRL(r.preco)}}</td>
+      <td class="num">
+        ${{fmtBRL(r.preco)}}
+        ${{r.queda_preco ? `<div class="queda-preco">📉 Caiu ${{fmtBRL(r.queda_preco)}}</div>` : ''}}
+      </td>
       <td class="num">${{fmtBRL(r.avaliacao)}}</td>
+      <td class="num">${{r.preco_m2 > 0 ? fmtBRL(r.preco_m2) + '/m²' : '—'}}</td>
       <td>
         <div class="desconto-cel">
           <span class="desconto-num num" style="color:${{corDesconto(r.desconto)}}">${{r.desconto.toFixed(0)}}%</span>
@@ -895,10 +1056,18 @@ document.getElementById('desconto-min').addEventListener('input', (e) => {{
   document.getElementById('desconto-min-valor').textContent = e.target.value + '%';
   aplicarFiltros();
 }});
-['busca','filtro-cidade','filtro-bairro','filtro-modalidade','filtro-novos','filtro-risco'].forEach(id => {{
+['busca','filtro-cidade','filtro-bairro','filtro-tipo','filtro-modalidade','filtro-novos','filtro-risco','preco-min','preco-max'].forEach(id => {{
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', aplicarFiltros);
 }});
+
+const btnLimpar = document.getElementById('limpar-busca');
+if (btnLimpar) {{
+  btnLimpar.addEventListener('click', () => {{
+    document.getElementById('busca').value = '';
+    aplicarFiltros();
+  }});
+}}
 
 aplicarFiltros();
 </script>
@@ -1475,6 +1644,68 @@ def processar_uf(
             )
         linhas = linhas_filtradas
 
+    # --- Adiciona 'Origem' aos imóveis da Caixa ---
+    for row in linhas:
+        if "Origem" not in row:
+            row["Origem"] = "Caixa"
+
+    # --- Integração Mega Leilões ---
+    try:
+        log.info("Iniciando scraper do Mega Leilões...")
+        ml_scraper = MegaLeiloesScraper(cidades_alvo=cidades if cidades else [])
+        imoveis_ml = ml_scraper.raspar()
+        
+        # Pega as chaves reais do CSV da Caixa para não dar erro no csv.DictWriter
+        chaves_caixa = list(linhas[0].keys()) if linhas else []
+        id_col = achar_coluna_id(linhas) if linhas else "N° do imóvel"
+        
+        for imovel in imoveis_ml:
+            novo_row = {k: "" for k in chaves_caixa}
+            
+            # Preenche os campos principais
+            if id_col in novo_row: novo_row[id_col] = imovel["id"]
+            if "Cidade" in novo_row: novo_row["Cidade"] = imovel["cidade"]
+            if "Bairro" in novo_row: novo_row["Bairro"] = imovel["bairro"]
+            if "Endereço" in novo_row: novo_row["Endereço"] = imovel["endereco"]
+            if "Preço" in novo_row: novo_row["Preço"] = str(imovel["preco"]).replace(".", ",")
+            if "Valor de avaliação" in novo_row: novo_row["Valor de avaliação"] = str(imovel["avaliacao"]).replace(".", ",")
+            if "Desconto" in novo_row: novo_row["Desconto"] = str(imovel["desconto"]).replace(".", ",")
+            if "Modalidade de venda" in novo_row: novo_row["Modalidade de venda"] = imovel["modalidade"]
+            if "Descrição" in novo_row: novo_row["Descrição"] = imovel["descricao"]
+            if "Link de acesso" in novo_row: novo_row["Link de acesso"] = imovel["link"]
+            if "Origem" in novo_row: novo_row["Origem"] = "Mega Leilões"
+            
+            linhas.append(novo_row)
+            
+        log.info("Adicionados %d imóveis do Mega Leilões", len(imoveis_ml))
+    except Exception as e:
+        log.error("Erro ao rodar scraper do Mega Leilões: %s", e)
+    # --- Integração Leilões Judiciais ---
+    try:
+        log.info("Iniciando scraper do Leilões Judiciais...")
+        lj_scraper = LeiloesJudiciaisScraper(cidades_alvo=cidades if cidades else [])
+        imoveis_lj = lj_scraper.raspar()
+        
+        for imovel in imoveis_lj:
+            novo_row = {k: "" for k in chaves_caixa}
+            if id_col in novo_row: novo_row[id_col] = imovel["id"]
+            if "Cidade" in novo_row: novo_row["Cidade"] = imovel["cidade"]
+            if "Bairro" in novo_row: novo_row["Bairro"] = imovel["bairro"]
+            if "Endereço" in novo_row: novo_row["Endereço"] = imovel["endereco"]
+            if "Preço" in novo_row: novo_row["Preço"] = str(imovel["preco"]).replace(".", ",")
+            if "Valor de avaliação" in novo_row: novo_row["Valor de avaliação"] = str(imovel["avaliacao"]).replace(".", ",")
+            if "Desconto" in novo_row: novo_row["Desconto"] = f'{imovel["desconto"]:.2f}'.replace(".", ",")
+            if "Modalidade de venda" in novo_row: novo_row["Modalidade de venda"] = imovel["modalidade"]
+            if "Descrição" in novo_row: novo_row["Descrição"] = imovel["descricao"]
+            if "Link de acesso" in novo_row: novo_row["Link de acesso"] = imovel["link"]
+            if "Origem" in novo_row: novo_row["Origem"] = "Leilões Judiciais"
+            linhas.append(novo_row)
+            
+        log.info("Adicionados %d imóveis do Leilões Judiciais", len(imoveis_lj))
+    except Exception as e:
+        log.error("Erro ao rodar scraper do Leilões Judiciais: %s", e)
+    # -------------------------------
+
     id_col = achar_coluna_id(linhas) if linhas else ""
     data_atual = datetime.now().strftime("%Y-%m-%d")
     anteriores = carregar_snapshot_anterior(uf, outdir, data_atual)
@@ -1495,8 +1726,33 @@ def processar_uf(
         except Exception as e:
             log.warning("Falha ao obter índice de risco por bairro (POA): %s", e)
 
+    import json
+    historico_path = outdir / "historico_precos.json"
+    historico_precos = {}
+    if historico_path.exists():
+        try:
+            historico_precos = json.loads(historico_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    if linhas:
+        for row in linhas:
+            imovel_id = row.get(id_col)
+            if not imovel_id: continue
+            preco_atual = _parar_valor_brl(row.get("Preço", ""))
+            
+            if imovel_id not in historico_precos:
+                historico_precos[imovel_id] = {"datas": [data_atual], "precos": [preco_atual]}
+            else:
+                ultimo_preco = historico_precos[imovel_id]["precos"][-1]
+                if abs(ultimo_preco - preco_atual) > 0.01:
+                    historico_precos[imovel_id]["datas"].append(data_atual)
+                    historico_precos[imovel_id]["precos"].append(preco_atual)
+                    
+        historico_path.write_text(json.dumps(historico_precos, indent=2, ensure_ascii=False), encoding="utf-8")
+
     if html_out:
-        gerar_html(uf, data_atual, novos, removidos, linhas, cidades, html_out, risco_por_municipio, risco_bairro_poa)
+        gerar_html(uf, data_atual, novos, removidos, linhas, cidades, html_out, risco_por_municipio, risco_bairro_poa, historico_precos)
 
 
 def main():

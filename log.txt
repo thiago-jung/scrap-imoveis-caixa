@@ -113,3 +113,441 @@ Alteracoes detectadas. Enviando para o GitHub...
 To https://github.com/thiago-jung/scrap-imoveis-caixa.git
    2fc7a39..2122241  main -> main
 Processo concluido com sucesso! 
+2026-07-02 22:48:47,948 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 22:48:53,619 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 22:49:04,726 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-02 22:49:04,861 INFO Parseadas 724 linhas
+2026-07-02 22:49:04,863 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-02 22:49:04,864 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 22:49:04,886 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 22:49:04,887 INFO RS: 29 novos, 3 removidos (total atual: 417)
+2026-07-02 22:49:04,895 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-02 22:49:04,904 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-02 22:49:04,913 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main c839755] Atualizacao automatica: 02/07/2026
+ 2 files changed, 66 insertions(+), 29 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   19714d3..c839755  main -> main
+Processo concluido com sucesso! 
+2026-07-02 22:53:31,185 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 22:53:34,862 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 22:54:05,871 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-02 22:54:06,080 INFO Parseadas 724 linhas
+2026-07-02 22:54:06,083 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-02 22:54:06,085 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 22:54:06,101 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 22:54:06,102 INFO RS: 29 novos, 3 removidos (total atual: 417)
+2026-07-02 22:54:06,104 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-02 22:54:06,106 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-02 22:54:06,123 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main ee7cf1f] Atualizacao automatica: 02/07/2026
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   c839755..ee7cf1f  main -> main
+Processo concluido com sucesso! 
+2026-07-02 23:16:41,421 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 23:16:42,553 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 23:16:53,221 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-02 23:16:53,420 INFO Parseadas 724 linhas
+2026-07-02 23:16:53,424 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-02 23:16:53,425 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 23:16:53,440 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 23:16:53,441 INFO RS: 29 novos, 3 removidos (total atual: 417)
+2026-07-02 23:16:53,442 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-02 23:16:53,443 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-02 23:16:53,465 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 6468638] Atualizacao automatica: 02/07/2026
+ 2 files changed, 3353 insertions(+), 2 deletions(-)
+ create mode 100644 data/historico_precos.json
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   ee7cf1f..6468638  main -> main
+Processo concluido com sucesso! 
+2026-07-02 23:38:49,232 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-02 23:38:49,980 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-02 23:39:21,493 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-02 23:39:21,680 INFO Parseadas 724 linhas
+2026-07-02 23:39:21,685 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-02 23:39:21,687 INFO Comparando com snapshot anterior: data\RS_2026-07-01.csv
+2026-07-02 23:39:21,709 INFO Snapshot salvo em data\RS_2026-07-02.csv
+2026-07-02 23:39:21,710 INFO RS: 29 novos, 3 removidos (total atual: 417)
+2026-07-02 23:39:21,711 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-02 23:39:21,712 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-02 23:39:21,991 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 46e9de7] Atualizacao automatica: 02/07/2026
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   6468638..46e9de7  main -> main
+Processo concluido com sucesso! 
+2026-07-03 09:35:06,865 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-03 09:35:10,524 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-03 09:35:21,317 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-03 09:35:22,351 INFO Parseadas 724 linhas
+2026-07-03 09:35:22,353 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-03 09:35:22,355 INFO Comparando com snapshot anterior: data\RS_2026-07-02.csv
+2026-07-03 09:35:22,377 INFO Snapshot salvo em data\RS_2026-07-03.csv
+2026-07-03 09:35:22,378 INFO RS: 0 novos, 0 removidos (total atual: 417)
+2026-07-03 09:35:22,387 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-03 09:35:22,437 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-03 09:35:22,494 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main ed7482c] Atualizacao automatica: 03/07/2026
+ 2 files changed, 422 insertions(+), 8 deletions(-)
+ create mode 100644 data/RS_2026-07-03.csv
+Alteracoes detectadas. Enviando para o GitHub... 
+fatal: Unable to persist credentials with the 'wincredman' credential store.
+See https://aka.ms/gcm/credstores for more information.
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   46e9de7..ed7482c  main -> main
+Processo concluido com sucesso! 
+2026-07-03 12:32:54,059 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-03 12:32:59,882 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-03 12:33:10,959 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-03 12:33:11,421 INFO Parseadas 724 linhas
+2026-07-03 12:33:11,425 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-03 12:33:11,427 INFO Comparando com snapshot anterior: data\RS_2026-07-02.csv
+2026-07-03 12:33:11,465 INFO Snapshot salvo em data\RS_2026-07-03.csv
+2026-07-03 12:33:11,466 INFO RS: 0 novos, 0 removidos (total atual: 417)
+2026-07-03 12:33:11,481 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-03 12:33:11,497 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-03 12:33:11,554 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   caixa_leiloes_scraper.py
+	modified:   log.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nenhuma alteracao no HTML ou CSV detectada. Commit ignorado. 
+Processo concluido com sucesso! 
+2026-07-03 14:07:25,365 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-03 14:07:30,269 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-03 14:08:02,102 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-03 14:08:02,276 INFO Parseadas 724 linhas
+2026-07-03 14:08:02,279 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-03 14:08:02,279 INFO Iniciando scraper do Mega Leilões...
+2026-07-03 14:08:02,279 INFO Mega Leilões: Baixando página 1 - https://www.megaleiloes.com.br/imoveis?pagina=1
+2026-07-03 14:08:04,450 INFO Mega Leilões: Baixando página 2 - https://www.megaleiloes.com.br/imoveis?pagina=2
+2026-07-03 14:08:06,292 INFO Mega Leilões: Baixando página 3 - https://www.megaleiloes.com.br/imoveis?pagina=3
+2026-07-03 14:08:08,076 INFO Mega Leilões: Baixando página 4 - https://www.megaleiloes.com.br/imoveis?pagina=4
+2026-07-03 14:08:09,704 INFO Mega Leilões: Baixando página 5 - https://www.megaleiloes.com.br/imoveis?pagina=5
+2026-07-03 14:08:11,519 INFO Mega Leilões: Baixando página 6 - https://www.megaleiloes.com.br/imoveis?pagina=6
+2026-07-03 14:08:13,360 INFO Mega Leilões: Baixando página 7 - https://www.megaleiloes.com.br/imoveis?pagina=7
+2026-07-03 14:08:15,447 INFO Mega Leilões: Baixando página 8 - https://www.megaleiloes.com.br/imoveis?pagina=8
+2026-07-03 14:08:17,384 INFO Mega Leilões: Baixando página 9 - https://www.megaleiloes.com.br/imoveis?pagina=9
+2026-07-03 14:08:19,468 INFO Mega Leilões: Baixando página 10 - https://www.megaleiloes.com.br/imoveis?pagina=10
+2026-07-03 14:08:21,586 INFO Mega Leilões: Baixando página 11 - https://www.megaleiloes.com.br/imoveis?pagina=11
+2026-07-03 14:08:23,825 INFO Mega Leilões: Baixando página 12 - https://www.megaleiloes.com.br/imoveis?pagina=12
+2026-07-03 14:08:25,413 INFO Fim da paginação (última página: 12)
+2026-07-03 14:08:25,416 INFO Adicionados 16 imóveis do Mega Leilões
+2026-07-03 14:08:25,417 INFO Comparando com snapshot anterior: data\RS_2026-07-02.csv
+Traceback (most recent call last):
+  File "C:\Projects\scrap-imoveis-caixa\caixa_leiloes_scraper.py", line 1727, in <module>
+    main()
+    ~~~~^^
+  File "C:\Projects\scrap-imoveis-caixa\caixa_leiloes_scraper.py", line 1705, in main
+    processar_uf(
+    ~~~~~~~~~~~~^
+        uf,
+        ^^^
+    ...<5 lines>...
+        com_risco=not args.sem_risco,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\scrap-imoveis-caixa\caixa_leiloes_scraper.py", line 1601, in processar_uf
+    salvar_snapshot(linhas, uf, outdir)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\scrap-imoveis-caixa\caixa_leiloes_scraper.py", line 461, in salvar_snapshot
+    writer.writerows(linhas)
+    ~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Python314\Lib\csv.py", line 228, in writerows
+    return self.writer.writerows(map(self._dict_to_list, rowdicts))
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\csv.py", line 220, in _dict_to_list
+    raise ValueError("dict contains fields not in fieldnames: "
+                     + ", ".join([repr(x) for x in wrong_fields]))
+ValueError: dict contains fields not in fieldnames: 'Origem'
+ 
+========================================= 
+Processo do Python concluido. 
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   caixa_leiloes_scraper.py
+	modified:   log.txt
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	mega_sample.html
+	scrapers/
+	test_mega.py
+	test_mega_cities.py
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Nenhuma alteracao no HTML ou CSV detectada. Commit ignorado. 
+Processo concluido com sucesso! 
+2026-07-03 14:34:47,329 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-03 14:34:48,365 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-03 14:35:20,456 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-03 14:35:20,640 INFO Parseadas 724 linhas
+2026-07-03 14:35:20,642 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-03 14:35:20,642 INFO Iniciando scraper do Mega Leilões...
+2026-07-03 14:35:20,642 INFO Mega Leilões: Baixando página 1 - https://www.megaleiloes.com.br/imoveis?pagina=1
+2026-07-03 14:35:23,560 INFO Mega Leilões: Baixando página 2 - https://www.megaleiloes.com.br/imoveis?pagina=2
+2026-07-03 14:35:25,516 INFO Mega Leilões: Baixando página 3 - https://www.megaleiloes.com.br/imoveis?pagina=3
+2026-07-03 14:35:27,075 INFO Mega Leilões: Baixando página 4 - https://www.megaleiloes.com.br/imoveis?pagina=4
+2026-07-03 14:35:28,704 INFO Mega Leilões: Baixando página 5 - https://www.megaleiloes.com.br/imoveis?pagina=5
+2026-07-03 14:35:30,247 INFO Mega Leilões: Baixando página 6 - https://www.megaleiloes.com.br/imoveis?pagina=6
+2026-07-03 14:35:31,887 INFO Mega Leilões: Baixando página 7 - https://www.megaleiloes.com.br/imoveis?pagina=7
+2026-07-03 14:35:33,684 INFO Mega Leilões: Baixando página 8 - https://www.megaleiloes.com.br/imoveis?pagina=8
+2026-07-03 14:35:35,265 INFO Mega Leilões: Baixando página 9 - https://www.megaleiloes.com.br/imoveis?pagina=9
+2026-07-03 14:35:37,346 INFO Mega Leilões: Baixando página 10 - https://www.megaleiloes.com.br/imoveis?pagina=10
+2026-07-03 14:35:39,534 INFO Mega Leilões: Baixando página 11 - https://www.megaleiloes.com.br/imoveis?pagina=11
+2026-07-03 14:35:41,373 INFO Mega Leilões: Baixando página 12 - https://www.megaleiloes.com.br/imoveis?pagina=12
+2026-07-03 14:35:42,714 INFO Fim da paginação (última página: 12)
+2026-07-03 14:35:42,718 INFO Adicionados 16 imóveis do Mega Leilões
+2026-07-03 14:35:42,719 INFO Comparando com snapshot anterior: data\RS_2026-07-02.csv
+2026-07-03 14:35:42,745 INFO Snapshot salvo em data\RS_2026-07-03.csv
+2026-07-03 14:35:42,746 INFO RS: 16 novos, 0 removidos (total atual: 433)
+2026-07-03 14:35:42,780 INFO Usando cache de criminalidade (1 dia(s) de idade).
+2026-07-03 14:35:42,808 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-03 14:35:42,922 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main d7d0863] Atualizacao automatica: 03/07/2026
+ 3 files changed, 664 insertions(+), 426 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   ed7482c..d7d0863  main -> main
+Processo concluido com sucesso! 
+2026-07-03 16:51:46,986 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-03 16:51:49,125 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-03 16:52:00,562 INFO Desafio passado na tentativa 1 (bytes: 250309)
+2026-07-03 16:52:00,896 INFO Parseadas 724 linhas
+2026-07-03 16:52:00,903 INFO Filtro de cidade: 417 de 724 linhas mantidas
+2026-07-03 16:52:00,904 INFO Iniciando scraper do Mega Leilões...
+2026-07-03 16:52:00,904 INFO Mega Leilões: Baixando página 1 - https://www.megaleiloes.com.br/imoveis?pagina=1
+2026-07-03 16:52:03,910 INFO Mega Leilões: Baixando página 2 - https://www.megaleiloes.com.br/imoveis?pagina=2
+2026-07-03 16:52:06,312 INFO Mega Leilões: Baixando página 3 - https://www.megaleiloes.com.br/imoveis?pagina=3
+2026-07-03 16:52:08,989 INFO Mega Leilões: Baixando página 4 - https://www.megaleiloes.com.br/imoveis?pagina=4
+2026-07-03 16:52:11,512 INFO Mega Leilões: Baixando página 5 - https://www.megaleiloes.com.br/imoveis?pagina=5
+2026-07-03 16:52:13,853 INFO Mega Leilões: Baixando página 6 - https://www.megaleiloes.com.br/imoveis?pagina=6
+2026-07-03 16:52:16,425 INFO Mega Leilões: Baixando página 7 - https://www.megaleiloes.com.br/imoveis?pagina=7
+2026-07-03 16:52:18,787 INFO Mega Leilões: Baixando página 8 - https://www.megaleiloes.com.br/imoveis?pagina=8
+2026-07-03 16:52:21,185 INFO Mega Leilões: Baixando página 9 - https://www.megaleiloes.com.br/imoveis?pagina=9
+2026-07-03 16:52:23,868 INFO Mega Leilões: Baixando página 10 - https://www.megaleiloes.com.br/imoveis?pagina=10
+2026-07-03 16:52:26,208 INFO Mega Leilões: Baixando página 11 - https://www.megaleiloes.com.br/imoveis?pagina=11
+2026-07-03 16:52:28,237 INFO Fim da paginação (última página: 11)
+2026-07-03 16:52:28,240 INFO Adicionados 16 imóveis do Mega Leilões
+2026-07-03 16:52:28,240 INFO Iniciando scraper do Leilões Judiciais...
+2026-07-03 16:52:28,240 INFO Leilões Judiciais: Baixando página 1 - https://www.leiloesjudiciais.com.br/imoveis?pagina=1
+2026-07-03 16:52:32,165 INFO Leilões Judiciais: Baixando página 2 - https://www.leiloesjudiciais.com.br/imoveis?pagina=2
+2026-07-03 16:52:33,612 INFO Leilões Judiciais: Baixando página 3 - https://www.leiloesjudiciais.com.br/imoveis?pagina=3
+2026-07-03 16:52:35,033 INFO Leilões Judiciais: Baixando página 4 - https://www.leiloesjudiciais.com.br/imoveis?pagina=4
+2026-07-03 16:52:36,463 INFO Leilões Judiciais: Baixando página 5 - https://www.leiloesjudiciais.com.br/imoveis?pagina=5
+2026-07-03 16:52:37,958 INFO Leilões Judiciais: Baixando página 6 - https://www.leiloesjudiciais.com.br/imoveis?pagina=6
+2026-07-03 16:52:39,480 INFO Leilões Judiciais: Baixando página 7 - https://www.leiloesjudiciais.com.br/imoveis?pagina=7
+2026-07-03 16:52:40,794 INFO Leilões Judiciais: Baixando página 8 - https://www.leiloesjudiciais.com.br/imoveis?pagina=8
+2026-07-03 16:52:41,961 INFO Leilões Judiciais: Baixando página 9 - https://www.leiloesjudiciais.com.br/imoveis?pagina=9
+2026-07-03 16:52:43,411 INFO Leilões Judiciais: Baixando página 10 - https://www.leiloesjudiciais.com.br/imoveis?pagina=10
+2026-07-03 16:52:45,032 INFO Leilões Judiciais: Baixando página 11 - https://www.leiloesjudiciais.com.br/imoveis?pagina=11
+2026-07-03 16:52:46,653 INFO Leilões Judiciais: Baixando página 12 - https://www.leiloesjudiciais.com.br/imoveis?pagina=12
+2026-07-03 16:52:48,050 INFO Leilões Judiciais: Baixando página 13 - https://www.leiloesjudiciais.com.br/imoveis?pagina=13
+2026-07-03 16:52:49,561 INFO Leilões Judiciais: Baixando página 14 - https://www.leiloesjudiciais.com.br/imoveis?pagina=14
+2026-07-03 16:52:51,122 INFO Leilões Judiciais: Baixando página 15 - https://www.leiloesjudiciais.com.br/imoveis?pagina=15
+2026-07-03 16:52:52,481 INFO Leilões Judiciais: Baixando página 16 - https://www.leiloesjudiciais.com.br/imoveis?pagina=16
+2026-07-03 16:52:53,922 INFO Leilões Judiciais: Baixando página 17 - https://www.leiloesjudiciais.com.br/imoveis?pagina=17
+2026-07-03 16:52:55,258 INFO Leilões Judiciais: Baixando página 18 - https://www.leiloesjudiciais.com.br/imoveis?pagina=18
+2026-07-03 16:52:56,764 INFO Leilões Judiciais: Baixando página 19 - https://www.leiloesjudiciais.com.br/imoveis?pagina=19
+2026-07-03 16:52:58,164 INFO Leilões Judiciais: Baixando página 20 - https://www.leiloesjudiciais.com.br/imoveis?pagina=20
+2026-07-03 16:52:59,578 INFO Leilões Judiciais: Baixando página 21 - https://www.leiloesjudiciais.com.br/imoveis?pagina=21
+2026-07-03 16:53:00,960 INFO Leilões Judiciais: Baixando página 22 - https://www.leiloesjudiciais.com.br/imoveis?pagina=22
+2026-07-03 16:53:02,357 INFO Leilões Judiciais: Baixando página 23 - https://www.leiloesjudiciais.com.br/imoveis?pagina=23
+2026-07-03 16:53:03,680 INFO Leilões Judiciais: Baixando página 24 - https://www.leiloesjudiciais.com.br/imoveis?pagina=24
+2026-07-03 16:53:05,113 INFO Leilões Judiciais: Baixando página 25 - https://www.leiloesjudiciais.com.br/imoveis?pagina=25
+2026-07-03 16:53:07,744 INFO Leilões Judiciais: Baixando página 26 - https://www.leiloesjudiciais.com.br/imoveis?pagina=26
+2026-07-03 16:53:09,790 INFO Fim da paginação (última página: 26)
+2026-07-03 16:53:09,790 INFO Total de imóveis filtrados encontrados no Leilões Judiciais: 40
+2026-07-03 16:53:09,791 INFO Adicionados 40 imóveis do Leilões Judiciais
+2026-07-03 16:53:09,794 INFO Comparando com snapshot anterior: data\RS_2026-07-02.csv
+2026-07-03 16:53:09,828 INFO Snapshot salvo em data\RS_2026-07-03.csv
+2026-07-03 16:53:09,830 INFO RS: 56 novos, 0 removidos (total atual: 473)
+2026-07-03 16:53:09,833 INFO Usando cache de criminalidade (2 dia(s) de idade).
+2026-07-03 16:53:09,836 INFO Usando cache de criminalidade por bairro RMPA (1 dia(s) de idade).
+2026-07-03 16:53:09,973 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 20b4805] Atualizacao automatica: 03/07/2026
+ 3 files changed, 368 insertions(+), 8 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   d7d0863..20b4805  main -> main
+Processo concluido com sucesso! 
+2026-07-04 09:47:34,589 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-04 09:47:40,669 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-04 09:48:12,324 INFO Desafio passado na tentativa 1 (bytes: 248674)
+2026-07-04 09:48:12,503 INFO Parseadas 717 linhas
+2026-07-04 09:48:12,506 INFO Filtro de cidade: 422 de 717 linhas mantidas
+2026-07-04 09:48:12,506 INFO Iniciando scraper do Mega Leilões...
+2026-07-04 09:48:12,506 INFO Mega Leilões: Baixando página 1 - https://www.megaleiloes.com.br/imoveis?pagina=1
+2026-07-04 09:48:14,107 INFO Mega Leilões: Baixando página 2 - https://www.megaleiloes.com.br/imoveis?pagina=2
+2026-07-04 09:48:15,514 INFO Mega Leilões: Baixando página 3 - https://www.megaleiloes.com.br/imoveis?pagina=3
+2026-07-04 09:48:16,789 INFO Mega Leilões: Baixando página 4 - https://www.megaleiloes.com.br/imoveis?pagina=4
+2026-07-04 09:48:18,412 INFO Mega Leilões: Baixando página 5 - https://www.megaleiloes.com.br/imoveis?pagina=5
+2026-07-04 09:48:20,165 INFO Mega Leilões: Baixando página 6 - https://www.megaleiloes.com.br/imoveis?pagina=6
+2026-07-04 09:48:21,668 INFO Mega Leilões: Baixando página 7 - https://www.megaleiloes.com.br/imoveis?pagina=7
+2026-07-04 09:48:23,196 INFO Mega Leilões: Baixando página 8 - https://www.megaleiloes.com.br/imoveis?pagina=8
+2026-07-04 09:48:24,535 INFO Mega Leilões: Baixando página 9 - https://www.megaleiloes.com.br/imoveis?pagina=9
+2026-07-04 09:48:25,889 INFO Mega Leilões: Baixando página 10 - https://www.megaleiloes.com.br/imoveis?pagina=10
+2026-07-04 09:48:27,449 INFO Mega Leilões: Baixando página 11 - https://www.megaleiloes.com.br/imoveis?pagina=11
+2026-07-04 09:48:28,784 INFO Mega Leilões: Baixando página 12 - https://www.megaleiloes.com.br/imoveis?pagina=12
+2026-07-04 09:48:30,522 INFO Mega Leilões: Baixando página 13 - https://www.megaleiloes.com.br/imoveis?pagina=13
+2026-07-04 09:48:32,069 INFO Mega Leilões: Baixando página 14 - https://www.megaleiloes.com.br/imoveis?pagina=14
+2026-07-04 09:48:33,482 INFO Mega Leilões: Baixando página 15 - https://www.megaleiloes.com.br/imoveis?pagina=15
+2026-07-04 09:48:34,850 INFO Mega Leilões: Baixando página 16 - https://www.megaleiloes.com.br/imoveis?pagina=16
+2026-07-04 09:48:36,553 INFO Fim da paginação (última página: 16)
+2026-07-04 09:48:36,555 INFO Adicionados 25 imóveis do Mega Leilões
+2026-07-04 09:48:36,555 INFO Iniciando scraper do Leilões Judiciais...
+2026-07-04 09:48:36,555 INFO Leilões Judiciais: Baixando página 1 - https://www.leiloesjudiciais.com.br/imoveis?pagina=1
+2026-07-04 09:48:39,286 INFO Leilões Judiciais: Baixando página 2 - https://www.leiloesjudiciais.com.br/imoveis?pagina=2
+2026-07-04 09:48:40,298 INFO Leilões Judiciais: Baixando página 3 - https://www.leiloesjudiciais.com.br/imoveis?pagina=3
+2026-07-04 09:48:41,296 INFO Leilões Judiciais: Baixando página 4 - https://www.leiloesjudiciais.com.br/imoveis?pagina=4
+2026-07-04 09:48:42,253 INFO Leilões Judiciais: Baixando página 5 - https://www.leiloesjudiciais.com.br/imoveis?pagina=5
+2026-07-04 09:48:43,461 INFO Leilões Judiciais: Baixando página 6 - https://www.leiloesjudiciais.com.br/imoveis?pagina=6
+2026-07-04 09:48:45,549 INFO Leilões Judiciais: Baixando página 7 - https://www.leiloesjudiciais.com.br/imoveis?pagina=7
+2026-07-04 09:48:47,404 INFO Leilões Judiciais: Baixando página 8 - https://www.leiloesjudiciais.com.br/imoveis?pagina=8
+2026-07-04 09:48:49,161 INFO Leilões Judiciais: Baixando página 9 - https://www.leiloesjudiciais.com.br/imoveis?pagina=9
+2026-07-04 09:48:50,884 INFO Leilões Judiciais: Baixando página 10 - https://www.leiloesjudiciais.com.br/imoveis?pagina=10
+2026-07-04 09:48:52,767 INFO Leilões Judiciais: Baixando página 11 - https://www.leiloesjudiciais.com.br/imoveis?pagina=11
+2026-07-04 09:48:54,891 INFO Leilões Judiciais: Baixando página 12 - https://www.leiloesjudiciais.com.br/imoveis?pagina=12
+2026-07-04 09:48:56,669 INFO Leilões Judiciais: Baixando página 13 - https://www.leiloesjudiciais.com.br/imoveis?pagina=13
+2026-07-04 09:48:58,659 INFO Leilões Judiciais: Baixando página 14 - https://www.leiloesjudiciais.com.br/imoveis?pagina=14
+2026-07-04 09:49:00,446 INFO Leilões Judiciais: Baixando página 15 - https://www.leiloesjudiciais.com.br/imoveis?pagina=15
+2026-07-04 09:49:02,400 INFO Leilões Judiciais: Baixando página 16 - https://www.leiloesjudiciais.com.br/imoveis?pagina=16
+2026-07-04 09:49:04,810 INFO Leilões Judiciais: Baixando página 17 - https://www.leiloesjudiciais.com.br/imoveis?pagina=17
+2026-07-04 09:49:06,716 INFO Leilões Judiciais: Baixando página 18 - https://www.leiloesjudiciais.com.br/imoveis?pagina=18
+2026-07-04 09:49:08,637 INFO Leilões Judiciais: Baixando página 19 - https://www.leiloesjudiciais.com.br/imoveis?pagina=19
+2026-07-04 09:49:10,654 INFO Leilões Judiciais: Baixando página 20 - https://www.leiloesjudiciais.com.br/imoveis?pagina=20
+2026-07-04 09:49:12,512 INFO Leilões Judiciais: Baixando página 21 - https://www.leiloesjudiciais.com.br/imoveis?pagina=21
+2026-07-04 09:49:14,397 INFO Leilões Judiciais: Baixando página 22 - https://www.leiloesjudiciais.com.br/imoveis?pagina=22
+2026-07-04 09:49:16,427 INFO Leilões Judiciais: Baixando página 23 - https://www.leiloesjudiciais.com.br/imoveis?pagina=23
+2026-07-04 09:49:18,721 INFO Leilões Judiciais: Baixando página 24 - https://www.leiloesjudiciais.com.br/imoveis?pagina=24
+2026-07-04 09:49:21,175 INFO Leilões Judiciais: Baixando página 25 - https://www.leiloesjudiciais.com.br/imoveis?pagina=25
+2026-07-04 09:49:23,571 INFO Leilões Judiciais: Baixando página 26 - https://www.leiloesjudiciais.com.br/imoveis?pagina=26
+2026-07-04 09:49:25,685 INFO Fim da paginação (última página: 26)
+2026-07-04 09:49:25,685 INFO Total de imóveis filtrados encontrados no Leilões Judiciais: 42
+2026-07-04 09:49:25,686 INFO Adicionados 42 imóveis do Leilões Judiciais
+2026-07-04 09:49:25,690 INFO Comparando com snapshot anterior: data\RS_2026-07-03.csv
+2026-07-04 09:49:25,753 INFO Snapshot salvo em data\RS_2026-07-04.csv
+2026-07-04 09:49:25,754 INFO RS: 29 novos, 13 removidos (total atual: 489)
+2026-07-04 09:49:25,778 INFO Usando cache de criminalidade (2 dia(s) de idade).
+2026-07-04 09:49:25,807 INFO Usando cache de criminalidade por bairro RMPA (2 dia(s) de idade).
+2026-07-04 09:49:25,924 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 67738ac] Atualizacao automatica: 04/07/2026
+ 3 files changed, 817 insertions(+), 9 deletions(-)
+ create mode 100644 data/RS_2026-07-04.csv
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   20b4805..67738ac  main -> main
+Processo concluido com sucesso! 
+2026-07-04 13:51:18,911 INFO Baixando lista de RS via navegador: https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_RS.csv
+2026-07-04 13:51:19,830 INFO Aquecendo sessão em https://venda-imoveis.caixa.gov.br/sistema/busca-imovel.asp ...
+2026-07-04 13:51:27,194 INFO Desafio passado na tentativa 1 (bytes: 248674)
+2026-07-04 13:51:27,316 INFO Parseadas 717 linhas
+2026-07-04 13:51:27,320 INFO Filtro de cidade: 422 de 717 linhas mantidas
+2026-07-04 13:51:27,320 INFO Iniciando scraper do Mega Leilões...
+2026-07-04 13:51:27,320 INFO Mega Leilões: Baixando página 1 - https://www.megaleiloes.com.br/imoveis?pagina=1
+2026-07-04 13:51:29,299 INFO Mega Leilões: Baixando página 2 - https://www.megaleiloes.com.br/imoveis?pagina=2
+2026-07-04 13:51:31,626 INFO Mega Leilões: Baixando página 3 - https://www.megaleiloes.com.br/imoveis?pagina=3
+2026-07-04 13:51:33,955 INFO Mega Leilões: Baixando página 4 - https://www.megaleiloes.com.br/imoveis?pagina=4
+2026-07-04 13:51:35,770 INFO Mega Leilões: Baixando página 5 - https://www.megaleiloes.com.br/imoveis?pagina=5
+2026-07-04 13:51:37,931 INFO Mega Leilões: Baixando página 6 - https://www.megaleiloes.com.br/imoveis?pagina=6
+2026-07-04 13:51:39,932 INFO Mega Leilões: Baixando página 7 - https://www.megaleiloes.com.br/imoveis?pagina=7
+2026-07-04 13:51:41,979 INFO Mega Leilões: Baixando página 8 - https://www.megaleiloes.com.br/imoveis?pagina=8
+2026-07-04 13:51:43,785 INFO Mega Leilões: Baixando página 9 - https://www.megaleiloes.com.br/imoveis?pagina=9
+2026-07-04 13:51:45,839 INFO Mega Leilões: Baixando página 10 - https://www.megaleiloes.com.br/imoveis?pagina=10
+2026-07-04 13:51:47,798 INFO Mega Leilões: Baixando página 11 - https://www.megaleiloes.com.br/imoveis?pagina=11
+2026-07-04 13:51:49,934 INFO Mega Leilões: Baixando página 12 - https://www.megaleiloes.com.br/imoveis?pagina=12
+2026-07-04 13:51:52,664 INFO Mega Leilões: Baixando página 13 - https://www.megaleiloes.com.br/imoveis?pagina=13
+2026-07-04 13:51:54,597 INFO Mega Leilões: Baixando página 14 - https://www.megaleiloes.com.br/imoveis?pagina=14
+2026-07-04 13:51:56,880 INFO Mega Leilões: Baixando página 15 - https://www.megaleiloes.com.br/imoveis?pagina=15
+2026-07-04 13:51:59,143 INFO Mega Leilões: Baixando página 16 - https://www.megaleiloes.com.br/imoveis?pagina=16
+2026-07-04 13:52:00,779 INFO Fim da paginação (última página: 16)
+2026-07-04 13:52:00,782 INFO Adicionados 25 imóveis do Mega Leilões
+2026-07-04 13:52:00,782 INFO Iniciando scraper do Leilões Judiciais...
+2026-07-04 13:52:00,782 INFO Leilões Judiciais: Baixando página 1 - https://www.leiloesjudiciais.com.br/imoveis?pagina=1
+2026-07-04 13:52:03,818 INFO Leilões Judiciais: Baixando página 2 - https://www.leiloesjudiciais.com.br/imoveis?pagina=2
+2026-07-04 13:52:04,921 INFO Leilões Judiciais: Baixando página 3 - https://www.leiloesjudiciais.com.br/imoveis?pagina=3
+2026-07-04 13:52:06,170 INFO Leilões Judiciais: Baixando página 4 - https://www.leiloesjudiciais.com.br/imoveis?pagina=4
+2026-07-04 13:52:07,288 INFO Leilões Judiciais: Baixando página 5 - https://www.leiloesjudiciais.com.br/imoveis?pagina=5
+2026-07-04 13:52:08,288 INFO Leilões Judiciais: Baixando página 6 - https://www.leiloesjudiciais.com.br/imoveis?pagina=6
+2026-07-04 13:52:09,628 INFO Leilões Judiciais: Baixando página 7 - https://www.leiloesjudiciais.com.br/imoveis?pagina=7
+2026-07-04 13:52:10,927 INFO Leilões Judiciais: Baixando página 8 - https://www.leiloesjudiciais.com.br/imoveis?pagina=8
+2026-07-04 13:52:12,211 INFO Leilões Judiciais: Baixando página 9 - https://www.leiloesjudiciais.com.br/imoveis?pagina=9
+2026-07-04 13:52:13,336 INFO Leilões Judiciais: Baixando página 10 - https://www.leiloesjudiciais.com.br/imoveis?pagina=10
+2026-07-04 13:52:14,532 INFO Leilões Judiciais: Baixando página 11 - https://www.leiloesjudiciais.com.br/imoveis?pagina=11
+2026-07-04 13:52:15,797 INFO Leilões Judiciais: Baixando página 12 - https://www.leiloesjudiciais.com.br/imoveis?pagina=12
+2026-07-04 13:52:17,057 INFO Leilões Judiciais: Baixando página 13 - https://www.leiloesjudiciais.com.br/imoveis?pagina=13
+2026-07-04 13:52:18,270 INFO Leilões Judiciais: Baixando página 14 - https://www.leiloesjudiciais.com.br/imoveis?pagina=14
+2026-07-04 13:52:19,536 INFO Leilões Judiciais: Baixando página 15 - https://www.leiloesjudiciais.com.br/imoveis?pagina=15
+2026-07-04 13:52:20,686 INFO Leilões Judiciais: Baixando página 16 - https://www.leiloesjudiciais.com.br/imoveis?pagina=16
+2026-07-04 13:52:21,833 INFO Leilões Judiciais: Baixando página 17 - https://www.leiloesjudiciais.com.br/imoveis?pagina=17
+2026-07-04 13:52:23,073 INFO Leilões Judiciais: Baixando página 18 - https://www.leiloesjudiciais.com.br/imoveis?pagina=18
+2026-07-04 13:52:24,269 INFO Leilões Judiciais: Baixando página 19 - https://www.leiloesjudiciais.com.br/imoveis?pagina=19
+2026-07-04 13:52:25,373 INFO Leilões Judiciais: Baixando página 20 - https://www.leiloesjudiciais.com.br/imoveis?pagina=20
+2026-07-04 13:52:26,226 INFO Leilões Judiciais: Baixando página 21 - https://www.leiloesjudiciais.com.br/imoveis?pagina=21
+2026-07-04 13:52:27,227 INFO Leilões Judiciais: Baixando página 22 - https://www.leiloesjudiciais.com.br/imoveis?pagina=22
+2026-07-04 13:52:28,285 INFO Leilões Judiciais: Baixando página 23 - https://www.leiloesjudiciais.com.br/imoveis?pagina=23
+2026-07-04 13:52:29,502 INFO Leilões Judiciais: Baixando página 24 - https://www.leiloesjudiciais.com.br/imoveis?pagina=24
+2026-07-04 13:52:30,671 INFO Leilões Judiciais: Baixando página 25 - https://www.leiloesjudiciais.com.br/imoveis?pagina=25
+2026-07-04 13:52:31,832 INFO Leilões Judiciais: Baixando página 26 - https://www.leiloesjudiciais.com.br/imoveis?pagina=26
+2026-07-04 13:52:32,680 INFO Fim da paginação (última página: 26)
+2026-07-04 13:52:32,681 INFO Total de imóveis filtrados encontrados no Leilões Judiciais: 42
+2026-07-04 13:52:32,681 INFO Adicionados 42 imóveis do Leilões Judiciais
+2026-07-04 13:52:32,682 INFO Comparando com snapshot anterior: data\RS_2026-07-03.csv
+2026-07-04 13:52:32,699 INFO Snapshot salvo em data\RS_2026-07-04.csv
+2026-07-04 13:52:32,700 INFO RS: 29 novos, 13 removidos (total atual: 489)
+2026-07-04 13:52:32,700 INFO Usando cache de criminalidade (2 dia(s) de idade).
+2026-07-04 13:52:32,702 INFO Usando cache de criminalidade por bairro RMPA (2 dia(s) de idade).
+2026-07-04 13:52:32,783 INFO Relatório HTML salvo em index.html
+ 
+========================================= 
+Processo do Python concluido. 
+[main 19fd6f2] Atualizacao automatica: 04/07/2026
+ 2 files changed, 88 insertions(+), 30 deletions(-)
+Alteracoes detectadas. Enviando para o GitHub... 
+To https://github.com/thiago-jung/scrap-imoveis-caixa.git
+   67738ac..19fd6f2  main -> main
+Processo concluido com sucesso! 

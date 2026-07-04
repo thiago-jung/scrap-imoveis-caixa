@@ -63,9 +63,10 @@
   }
   #limpar-busca:hover { color: var(--text); }
   .toolbar input[type="number"] { width: 110px; }
-  .toolbar select { min-width: 130px; }
+  .toolbar select { width: 140px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
   .toolbar label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; display: flex; flex-direction: column; gap: 4px; }
   .toolbar .desconto-min { display: flex; align-items: center; gap: 8px; }
+  #desconto-min-valor { display: inline-block; width: 32px; text-align: right; }
   .toolbar input[type="range"] { accent-color: var(--gold); width: 110px; }
   .contagem { margin-left: auto; color: var(--muted); font-size: 12px; }
   .contagem b { color: var(--text); }
