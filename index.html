@@ -99,6 +99,9 @@
     border-radius: 4px; cursor: pointer; border: 1px solid #3b507a;
   }
   .badge-rua:hover { background: #3b507a; }
+  .btn-fav { background: transparent; border: none; font-size: 18px; cursor: pointer; color: var(--muted); padding: 0 6px 0 0; line-height: 1; transition: color 0.2s, transform 0.1s; display: inline-block; vertical-align: middle; }
+  .btn-fav:hover { color: var(--gold); transform: scale(1.1); }
+  .btn-fav.ativo { color: var(--gold); }
   .badge-idade { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
   .idade-novo { background: var(--good); color: #06170e; }
   .idade-encalhado { background: #5c1818; color: #f4a4a4; }
@@ -276,6 +279,9 @@
     <label>Só novos hoje
       <select id="filtro-novos"><option value="">Todos</option><option value="1">Sim</option></select>
     </label>
+    <label>Favoritos
+      <select id="filtro-favoritos"><option value="">Todos</option><option value="1">Só Favoritos</option></select>
+    </label>
     <label>Risco
       <select id="filtro-risco"><option value="">Todos</option><option value="baixo">Baixo</option><option value="medio">Médio</option><option value="alto">Alto</option></select>
     </label>
@@ -333,6 +339,18 @@ function corDesconto(d) {
 let ordenarPor = 'desconto';
 let ordemAsc = false;
 
+let favoritos = JSON.parse(localStorage.getItem('imoveis-favoritos') || '[]');
+
+function toggleFavorito(id) {
+  if (favoritos.includes(id)) {
+    favoritos = favoritos.filter(f => f !== id);
+  } else {
+    favoritos.push(id);
+  }
+  localStorage.setItem('imoveis-favoritos', JSON.stringify(favoritos));
+  aplicarFiltros();
+}
+
 function aplicarFiltros() {
   const inputBuscaEl = document.getElementById('busca');
   const busca = inputBuscaEl.value.trim().toLowerCase();
@@ -349,6 +367,7 @@ function aplicarFiltros() {
     tipo: document.getElementById('filtro-tipo') ? document.getElementById('filtro-tipo').value : '',
     modalidade: document.getElementById('filtro-modalidade').value,
     soNovos: document.getElementById('filtro-novos').value,
+    favoritos: document.getElementById('filtro-favoritos') ? document.getElementById('filtro-favoritos').value : '',
     risco: document.getElementById('filtro-risco') ? document.getElementById('filtro-risco').value : '',
     descMin: parseInt(document.getElementById('desconto-min').value, 10) || 0,
     precoMin: parseFloat(document.getElementById('preco-min').value) || 0,
@@ -363,6 +382,7 @@ function aplicarFiltros() {
     if (exclude !== 'tipo' && f.tipo && r.tipo !== f.tipo) return false;
     if (exclude !== 'modalidade' && f.modalidade && r.modalidade !== f.modalidade) return false;
     if (exclude !== 'soNovos' && f.soNovos === '1' && !r.novo) return false;
+    if (exclude !== 'favoritos' && f.favoritos === '1' && !favoritos.includes(r.id)) return false;
     if (exclude !== 'risco' && f.risco && r.risco !== f.risco) return false;
     if (r.desconto < f.descMin) return false;
     if (r.preco < f.precoMin || r.preco > f.precoMax) return false;
@@ -431,6 +451,7 @@ function renderizar(lista) {
   tbody.innerHTML = lista.map(r => `
     <tr class="${r.novo ? 'novo' : ''}">
       <td class="endereco">
+        <button class="btn-fav ${favoritos.includes(r.id) ? 'ativo' : ''}" onclick="toggleFavorito('${r.id}')" title="${favoritos.includes(r.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${favoritos.includes(r.id) ? '★' : '☆'}</button>
         <span class="bairro">
           <span class="badge-origem" style="background: ${r.origem === 'Caixa' ? '#005ca9' : (r.origem === 'Mega Leilões' ? '#b22222' : '#2e8b57')}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 6px;">${r.origem}</span>
           ${r.bairro || r.cidade}
@@ -474,7 +495,7 @@ document.getElementById('desconto-min').addEventListener('input', (e) => {
   aplicarFiltros();
 });
 
-['busca','filtro-categoria','filtro-cidade','filtro-bairro','filtro-tipo','filtro-modalidade','filtro-novos','filtro-risco','preco-min','preco-max'].forEach(id => {
+['busca','filtro-categoria','filtro-cidade','filtro-bairro','filtro-tipo','filtro-modalidade','filtro-novos','filtro-favoritos','filtro-risco','preco-min','preco-max'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', aplicarFiltros);
 });
